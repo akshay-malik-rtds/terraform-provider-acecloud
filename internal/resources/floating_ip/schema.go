@@ -43,12 +43,12 @@ func (r *floatingIPResource) Schema(_ context.Context, _ resource.SchemaRequest,
 				},
 			},
 			"billing_type": schema.StringAttribute{
-				Description: "Billing type for the floating IP. Defaults to 'hourly'.",
+				Description: "Billing type for the floating IP. Only 'hourly' is supported.",
 				Optional:    true,
 				Computed:    true,
 				Default:     stringdefault.StaticString("hourly"),
 				Validators: []validator.String{
-					stringvalidator.OneOf("hourly", "monthly"),
+					stringvalidator.OneOf("hourly"),
 				},
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),

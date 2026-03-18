@@ -229,12 +229,12 @@ func (r *instanceResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 							Required:    true,
 						},
 						"billing_type": schema.StringAttribute{
-							Description: "Billing type for the volume (e.g. hourly, monthly). Defaults to 'hourly'.",
+							Description: "Billing type for the volume. Valid: hourly, monthly, quarterly, half-yearly, yearly. Defaults to 'hourly'.",
 							Optional:    true,
 							Computed:    true,
 							Default:     stringdefault.StaticString("hourly"),
 							Validators: []validator.String{
-								stringvalidator.OneOf("hourly", "monthly"),
+								stringvalidator.OneOf("hourly", "monthly", "quarterly", "half-yearly", "yearly"),
 							},
 						},
 					},

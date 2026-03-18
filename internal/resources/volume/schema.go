@@ -73,12 +73,12 @@ func volumeSchema() schema.Schema {
 				Required:    true,
 			},
 			"billing_type": schema.StringAttribute{
-				Description: "Billing type for the volume. Defaults to 'hourly'.",
+				Description: "Billing type for the volume. Valid: hourly, monthly, quarterly, half-yearly, yearly. Defaults to 'hourly'.",
 				Optional:    true,
 				Computed:    true,
 				Default:     stringdefault.StaticString("hourly"),
 				Validators: []validator.String{
-					stringvalidator.OneOf("hourly", "monthly"),
+					stringvalidator.OneOf("hourly", "monthly", "quarterly", "half-yearly", "yearly"),
 				},
 			},
 			"availability_zone": schema.StringAttribute{
