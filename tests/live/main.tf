@@ -341,7 +341,6 @@ resource "acecloud_floating_ip" "test" {
   count = var.external_network_id != "" ? 1 : 0
 
   floating_network_id = var.external_network_id
-  billing_type        = "hourly"
   description         = "Terraform live test floating IP"
 }
 

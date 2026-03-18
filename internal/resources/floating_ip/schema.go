@@ -3,13 +3,10 @@ package floating_ip
 import (
 	"context"
 
-	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
-	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
@@ -17,7 +14,6 @@ import (
 type floatingIPModel struct {
 	ID                types.String `tfsdk:"id"`
 	FloatingNetworkID types.String `tfsdk:"floating_network_id"`
-	BillingType       types.String `tfsdk:"billing_type"`
 	PortID            types.String `tfsdk:"port_id"`
 	Description       types.String `tfsdk:"description"`
 	FloatingIPAddress types.String `tfsdk:"floating_ip_address"`
@@ -36,20 +32,8 @@ func (r *floatingIPResource) Schema(_ context.Context, _ resource.SchemaRequest,
 				},
 			},
 			"floating_network_id": schema.StringAttribute{
-				Description: "UUID of the external network to allocate the floating IP from (maps to backend field 'floating_network_id').",
+				Description: "UUID of the external network to allocate the floating IP from.",
 				Required:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.RequiresReplace(),
-				},
-			},
-			"billing_type": schema.StringAttribute{
-				Description: "Billing type for the floating IP. Only 'hourly' is supported.",
-				Optional:    true,
-				Computed:    true,
-				Default:     stringdefault.StaticString("hourly"),
-				Validators: []validator.String{
-					stringvalidator.OneOf("hourly"),
-				},
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},

@@ -64,6 +64,7 @@ func TestBuildCreateRequest_AllFields(t *testing.T) {
 		ServerGroupID:       types.StringNull(),
 		ConfigDrive:         types.BoolValue(false),
 		AdminPassword:       types.StringNull(),
+		BillingType:         types.StringValue("monthly"),
 		Tags:                tagsList,
 	}
 
@@ -101,6 +102,9 @@ func TestBuildCreateRequest_AllFields(t *testing.T) {
 	}
 	if body.Description != "A test server" {
 		t.Errorf("expected description 'A test server', got %s", body.Description)
+	}
+	if body.BillingType != "monthly" {
+		t.Errorf("expected billing_type monthly, got %s", body.BillingType)
 	}
 
 	// Volumes
@@ -184,6 +188,7 @@ func TestBuildCreateRequest_MinimalFields(t *testing.T) {
 		ServerGroupID:       types.StringNull(),
 		ConfigDrive:         types.BoolValue(false),
 		AdminPassword:       types.StringNull(),
+		BillingType:         types.StringValue("monthly"),
 		Tags:                types.ListNull(types.StringType),
 	}
 
@@ -369,6 +374,7 @@ func TestBuildCreateRequest_MultipleVolumes(t *testing.T) {
 		ServerGroupID:       types.StringNull(),
 		ConfigDrive:         types.BoolValue(false),
 		AdminPassword:       types.StringNull(),
+		BillingType:         types.StringValue("monthly"),
 		Tags:                types.ListNull(types.StringType),
 	}
 
@@ -453,6 +459,7 @@ func TestBuildCreateRequest_MultipleNetworks(t *testing.T) {
 		ServerGroupID:       types.StringNull(),
 		ConfigDrive:         types.BoolValue(false),
 		AdminPassword:       types.StringNull(),
+		BillingType:         types.StringValue("monthly"),
 		Tags:                types.ListNull(types.StringType),
 	}
 
@@ -510,6 +517,7 @@ func TestBuildCreateRequest_ServerGroupID(t *testing.T) {
 		ServerGroupID:       types.StringValue("sgrp-uuid-123"),
 		ConfigDrive:         types.BoolValue(false),
 		AdminPassword:       types.StringNull(),
+		BillingType:         types.StringValue("monthly"),
 		Tags:                types.ListNull(types.StringType),
 	}
 
@@ -561,6 +569,7 @@ func TestBuildCreateRequest_ConfigDrive(t *testing.T) {
 		ServerGroupID:       types.StringNull(),
 		ConfigDrive:         types.BoolValue(true),
 		AdminPassword:       types.StringNull(),
+		BillingType:         types.StringValue("monthly"),
 		Tags:                types.ListNull(types.StringType),
 	}
 
@@ -612,6 +621,7 @@ func TestBuildCreateRequest_AdminPassword(t *testing.T) {
 		ServerGroupID:       types.StringNull(),
 		ConfigDrive:         types.BoolValue(false),
 		AdminPassword:       types.StringValue("c2VjcmV0cGFzcw=="),
+		BillingType:         types.StringValue("monthly"),
 		Tags:                types.ListNull(types.StringType),
 	}
 
@@ -1011,6 +1021,7 @@ func TestCreateRequestBody_JSONSerialization(t *testing.T) {
 		ServerGroupID:       types.StringValue("sgrp-1"),
 		ConfigDrive:         types.BoolValue(true),
 		AdminPassword:       types.StringValue("cGFzc3dvcmQ="),
+		BillingType:         types.StringValue("monthly"),
 		Tags:                tagsList,
 	}
 
@@ -1035,6 +1046,7 @@ func TestCreateRequestBody_JSONSerialization(t *testing.T) {
 		"name",
 		"count",
 		"flavor",
+		"billing_type",
 		"boot_uuid",
 		"source_type",
 		"delete_on_termination",

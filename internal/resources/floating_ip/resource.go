@@ -54,10 +54,10 @@ func (r *floatingIPResource) Create(ctx context.Context, req resource.CreateRequ
 		return
 	}
 
-	// Build request body matching CLI: floating_network_id + billing_type
+	// Build request body — billing_type is always "hourly" for floating IPs (only allowed value)
 	body := map[string]interface{}{
 		"floating_network_id": plan.FloatingNetworkID.ValueString(),
-		"billing_type":        plan.BillingType.ValueString(),
+		"billing_type":        "hourly",
 	}
 	if !plan.PortID.IsNull() && !plan.PortID.IsUnknown() {
 		body["port_id"] = plan.PortID.ValueString()

@@ -20,7 +20,6 @@ func TestFloatingIPModel(t *testing.T) {
 	model := floatingIPModel{}
 	_ = model.ID
 	_ = model.FloatingNetworkID
-	_ = model.BillingType
 	_ = model.PortID
 	_ = model.Description
 	_ = model.FloatingIPAddress
@@ -31,7 +30,6 @@ func TestFloatingIPModel_AllFields(t *testing.T) {
 	model := floatingIPModel{
 		ID:                types.StringValue("fip-abc-123"),
 		FloatingNetworkID: types.StringValue("ext-net-456"),
-		BillingType:       types.StringValue("hourly"),
 		PortID:            types.StringValue("port-789"),
 		Description:       types.StringValue("my floating ip"),
 		FloatingIPAddress: types.StringValue("203.0.113.50"),
@@ -43,9 +41,6 @@ func TestFloatingIPModel_AllFields(t *testing.T) {
 	}
 	if model.FloatingNetworkID.ValueString() != "ext-net-456" {
 		t.Errorf("expected FloatingNetworkID ext-net-456, got %s", model.FloatingNetworkID.ValueString())
-	}
-	if model.BillingType.ValueString() != "hourly" {
-		t.Errorf("expected BillingType hourly, got %s", model.BillingType.ValueString())
 	}
 	if model.PortID.ValueString() != "port-789" {
 		t.Errorf("expected PortID port-789, got %s", model.PortID.ValueString())
@@ -63,6 +58,7 @@ func TestFloatingIPModel_AllFields(t *testing.T) {
 
 func TestFloatingIPCreateBody(t *testing.T) {
 	// Construct the create body as the resource does with all optional fields.
+	// billing_type is hardcoded to "hourly" in resource.go, not from the model.
 	body := map[string]interface{}{
 		"floating_network_id": "ext-net-456",
 		"billing_type":        "hourly",
@@ -212,7 +208,6 @@ func TestFloatingIPModel_ComputedFields(t *testing.T) {
 			model := floatingIPModel{
 				ID:                types.StringValue("fip-computed"),
 				FloatingNetworkID: types.StringValue("ext-net-1"),
-				BillingType:       types.StringValue("hourly"),
 				PortID:            types.StringNull(),
 				Description:       types.StringNull(),
 				FloatingIPAddress: types.StringValue(tc.floatingIPAddress),
@@ -552,7 +547,6 @@ func TestCreateResponseParsing(t *testing.T) {
 			plan := floatingIPModel{
 				ID:                types.StringValue(id),
 				FloatingNetworkID: types.StringValue("ext-net-test"),
-				BillingType:       types.StringValue("hourly"),
 				PortID:            types.StringUnknown(), // simulates plan unknown
 			}
 
@@ -738,7 +732,6 @@ func TestCreateBodyFromPlan(t *testing.T) {
 			name: "all optional fields set",
 			plan: floatingIPModel{
 				FloatingNetworkID: types.StringValue("ext-1"),
-				BillingType:       types.StringValue("hourly"),
 				PortID:            types.StringValue("port-1"),
 				Description:       types.StringValue("desc-1"),
 			},
@@ -751,7 +744,6 @@ func TestCreateBodyFromPlan(t *testing.T) {
 			name: "port_id null, description set",
 			plan: floatingIPModel{
 				FloatingNetworkID: types.StringValue("ext-2"),
-				BillingType:       types.StringValue("hourly"),
 				PortID:            types.StringNull(),
 				Description:       types.StringValue("only desc"),
 			},
@@ -763,7 +755,6 @@ func TestCreateBodyFromPlan(t *testing.T) {
 			name: "port_id unknown, description null",
 			plan: floatingIPModel{
 				FloatingNetworkID: types.StringValue("ext-3"),
-				BillingType:       types.StringValue("hourly"),
 				PortID:            types.StringUnknown(),
 				Description:       types.StringNull(),
 			},
@@ -774,7 +765,6 @@ func TestCreateBodyFromPlan(t *testing.T) {
 			name: "both optional fields null",
 			plan: floatingIPModel{
 				FloatingNetworkID: types.StringValue("ext-4"),
-				BillingType:       types.StringValue("hourly"),
 				PortID:            types.StringNull(),
 				Description:       types.StringNull(),
 			},
@@ -785,7 +775,6 @@ func TestCreateBodyFromPlan(t *testing.T) {
 			name: "empty description string is still set",
 			plan: floatingIPModel{
 				FloatingNetworkID: types.StringValue("ext-5"),
-				BillingType:       types.StringValue("hourly"),
 				PortID:            types.StringNull(),
 				Description:       types.StringValue(""),
 			},
@@ -797,10 +786,10 @@ func TestCreateBodyFromPlan(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			// Build body — mirrors Create() logic
+			// Build body — mirrors Create() logic (billing_type is hardcoded to "hourly")
 			body := map[string]interface{}{
 				"floating_network_id": tc.plan.FloatingNetworkID.ValueString(),
-				"billing_type":        tc.plan.BillingType.ValueString(),
+				"billing_type":        "hourly",
 			}
 			if !tc.plan.PortID.IsNull() && !tc.plan.PortID.IsUnknown() {
 				body["port_id"] = tc.plan.PortID.ValueString()

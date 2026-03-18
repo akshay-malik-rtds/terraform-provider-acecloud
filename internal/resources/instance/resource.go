@@ -62,6 +62,7 @@ type createInstanceRequest struct {
 	Description         string            `json:"description,omitempty"`
 	Count               int               `json:"count"`
 	Flavor              string            `json:"flavor"`
+	BillingType         string            `json:"billing_type"`
 	BootUUID            string            `json:"boot_uuid"`
 	SourceType          string            `json:"source_type"`
 	DeleteOnTermination bool              `json:"delete_on_termination"`
@@ -385,6 +386,7 @@ func buildCreateRequest(ctx context.Context, plan *instanceResourceModel) (*crea
 		Name:                plan.Name.ValueString(),
 		Count:               1,
 		Flavor:              plan.FlavorID.ValueString(),
+		BillingType:         plan.BillingType.ValueString(),
 		BootUUID:            plan.BootUUID.ValueString(),
 		SourceType:          plan.SourceType.ValueString(),
 		DeleteOnTermination: plan.DeleteOnTermination.ValueBool(),

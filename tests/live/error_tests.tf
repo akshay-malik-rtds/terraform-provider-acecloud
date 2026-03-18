@@ -111,7 +111,6 @@ resource "acecloud_floating_ip" "error_bad_network" {
   count = var.run_error_tests ? 1 : 0
 
   floating_network_id = "00000000-0000-0000-0000-000000000000"
-  billing_type        = "hourly"
 }
 
 # ═══════════════════════════════════════════════════════════════

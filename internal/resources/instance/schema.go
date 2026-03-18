@@ -58,6 +58,7 @@ type instanceResourceModel struct {
 	ServerGroupID       types.String `tfsdk:"server_group_id"`
 	ConfigDrive         types.Bool   `tfsdk:"config_drive"`
 	AdminPassword       types.String `tfsdk:"admin_password"`
+	BillingType         types.String `tfsdk:"billing_type"`
 	Tags                types.List   `tfsdk:"tags"`
 	Status              types.String `tfsdk:"status"`
 }
@@ -137,6 +138,19 @@ func (r *instanceResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 				Optional:    true,
 				Computed:    true,
 				Default:     stringdefault.StaticString("nova"),
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
+			},
+
+			"billing_type": schema.StringAttribute{
+				Description: "Billing type for the instance flavor. Valid: hourly, monthly, quarterly, half-yearly, yearly. Defaults to 'monthly' (consistent with UI).",
+				Optional:    true,
+				Computed:    true,
+				Default:     stringdefault.StaticString("monthly"),
+				Validators: []validator.String{
+					stringvalidator.OneOf("hourly", "monthly", "quarterly", "half-yearly", "yearly"),
+				},
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},

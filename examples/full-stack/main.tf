@@ -177,7 +177,6 @@ resource "acecloud_floating_ip" "web" {
   count = 2
 
   floating_network_id = acecloud_vpc.main.id
-  billing_type        = "hourly"
 }
 
 # ─── Outputs ──────────────────────────────────────────────

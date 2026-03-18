@@ -339,7 +339,6 @@ resource "acecloud_floating_ip" "advanced" {
   count = var.run_advanced_tests && var.external_network_id != "" ? 1 : 0
 
   floating_network_id = var.external_network_id
-  billing_type        = "hourly"
   description         = "Advanced test: public IP for instance"
 }
 

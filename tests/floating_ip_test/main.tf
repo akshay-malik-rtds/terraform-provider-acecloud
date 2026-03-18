@@ -70,7 +70,6 @@ provider "acecloud" {
 
 resource "acecloud_floating_ip" "test" {
   floating_network_id = var.external_network_id
-  billing_type        = "hourly"
   description         = "Standalone floating IP test"
 }
 
@@ -91,7 +90,3 @@ output "floating_ip_status" {
   value       = acecloud_floating_ip.test.status
 }
 
-output "floating_ip_billing_type" {
-  description = "Billing type"
-  value       = acecloud_floating_ip.test.billing_type
-}
