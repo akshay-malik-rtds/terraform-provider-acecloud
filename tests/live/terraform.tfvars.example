@@ -1,0 +1,34 @@
+# ─── Live Test Configuration ─────────────────────────────────
+#
+# Copy to terraform.tfvars and fill in your values:
+#   cp terraform.tfvars.example terraform.tfvars
+#
+# ─── Step 1: Auth + Basic Info ───────────────────────────────
+# Required: api_url + one auth method
+
+api_url    = "http://localhost:3000"
+region     = "mumbai"
+project_id = "your-project-uuid"
+
+# Auth Method 1: Static token
+# api_token = "your-jwt-token"
+
+# Auth Method 2: Email/password
+# email    = "your@email.com"
+# password = "your-password"
+
+# Auth Method 3: ace-cli config (no extra config needed)
+# Just run: ace auth login
+
+# ─── Step 2: Run basic test first ────────────────────────────
+# terraform plan  → see what will be created
+# terraform apply → creates VPC, Subnet, SG, KeyPair, Volume
+#
+# Check output: available_flavors and available_images
+# Pick a flavor_id and image_id from the outputs
+
+# ─── Step 3: Add instance config and re-apply ───────────────
+
+# flavor_id           = "uuid-from-step-2-output"
+# image_id            = "uuid-from-step-2-output"
+# external_network_id = "uuid-of-external-network"

@@ -1,0 +1,35 @@
+# Binaries
+terraform-provider-acecloud
+terraform-provider-acecloud_*
+*.exe
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+.terraform.lock.hcl
+crash.log
+
+# Go
+vendor/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Debug logs
+/tmp/
+acecloud_debug.log
+
+# Python
+__pycache__/
+*.pyc
+*.pptx
+*.py
