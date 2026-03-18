@@ -2152,3 +2152,130 @@ func TestMapReadResponseToState_StatusVariants(t *testing.T) {
 		})
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Billing type variants — top-level (flavor) billing_type
+// ---------------------------------------------------------------------------
+
+func TestBuildCreateRequest_BillingTypeVariants(t *testing.T) {
+	billingTypes := []string{"hourly", "monthly", "quarterly", "half-yearly", "yearly"}
+
+	for _, bt := range billingTypes {
+		t.Run(bt, func(t *testing.T) {
+			ctx := context.Background()
+
+			volumeObjType := types.ObjectType{
+				AttrTypes: map[string]attr.Type{
+					"size":         types.Int64Type,
+					"boot":         types.BoolType,
+					"volume_type":  types.StringType,
+					"billing_type": types.StringType,
+				},
+			}
+			vol, _ := types.ObjectValue(volumeObjType.AttrTypes, map[string]attr.Value{
+				"size":         types.Int64Value(20),
+				"boot":         types.BoolValue(true),
+				"volume_type":  types.StringValue("ssd"),
+				"billing_type": types.StringValue("hourly"),
+			})
+			volumesList, _ := types.ListValue(volumeObjType, []attr.Value{vol})
+			networkList, _ := types.ListValue(types.StringType, []attr.Value{types.StringValue("net-1")})
+			sgList, _ := types.ListValue(types.StringType, []attr.Value{types.StringValue("sg-1")})
+
+			plan := &instanceResourceModel{
+				Name:                types.StringValue("billing-test"),
+				Description:         types.StringNull(),
+				FlavorID:            types.StringValue("flv-1"),
+				BootUUID:            types.StringValue("img-1"),
+				SourceType:          types.StringValue("image"),
+				DeleteOnTermination: types.BoolValue(true),
+				Volumes:             volumesList,
+				NetworkIDs:          networkList,
+				SecurityGroupIDs:    sgList,
+				AvailabilityZone:    types.StringValue("az-1"),
+				Metadata:            types.MapNull(types.StringType),
+				KeyName:             types.StringNull(),
+				UserData:            types.StringNull(),
+				ServerGroupID:       types.StringNull(),
+				ConfigDrive:         types.BoolValue(false),
+				AdminPassword:       types.StringNull(),
+				BillingType:         types.StringValue(bt),
+				Tags:                types.ListNull(types.StringType),
+			}
+
+			body, diags := buildCreateRequest(ctx, plan)
+			if diags.HasError() {
+				t.Fatalf("unexpected diagnostics: %v", diags.Errors())
+			}
+
+			if body.BillingType != bt {
+				t.Errorf("expected billing_type %q, got %q", bt, body.BillingType)
+			}
+		})
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Billing type variants — per-volume billing_type
+// ---------------------------------------------------------------------------
+
+func TestBuildCreateRequest_VolumeBillingTypeVariants(t *testing.T) {
+	billingTypes := []string{"hourly", "monthly", "quarterly", "half-yearly", "yearly"}
+
+	for _, bt := range billingTypes {
+		t.Run(bt, func(t *testing.T) {
+			ctx := context.Background()
+
+			volumeObjType := types.ObjectType{
+				AttrTypes: map[string]attr.Type{
+					"size":         types.Int64Type,
+					"boot":         types.BoolType,
+					"volume_type":  types.StringType,
+					"billing_type": types.StringType,
+				},
+			}
+			vol, _ := types.ObjectValue(volumeObjType.AttrTypes, map[string]attr.Value{
+				"size":         types.Int64Value(50),
+				"boot":         types.BoolValue(true),
+				"volume_type":  types.StringValue("ssd"),
+				"billing_type": types.StringValue(bt),
+			})
+			volumesList, _ := types.ListValue(volumeObjType, []attr.Value{vol})
+			networkList, _ := types.ListValue(types.StringType, []attr.Value{types.StringValue("net-1")})
+			sgList, _ := types.ListValue(types.StringType, []attr.Value{types.StringValue("sg-1")})
+
+			plan := &instanceResourceModel{
+				Name:                types.StringValue("vol-billing-test"),
+				Description:         types.StringNull(),
+				FlavorID:            types.StringValue("flv-1"),
+				BootUUID:            types.StringValue("img-1"),
+				SourceType:          types.StringValue("image"),
+				DeleteOnTermination: types.BoolValue(true),
+				Volumes:             volumesList,
+				NetworkIDs:          networkList,
+				SecurityGroupIDs:    sgList,
+				AvailabilityZone:    types.StringValue("az-1"),
+				Metadata:            types.MapNull(types.StringType),
+				KeyName:             types.StringNull(),
+				UserData:            types.StringNull(),
+				ServerGroupID:       types.StringNull(),
+				ConfigDrive:         types.BoolValue(false),
+				AdminPassword:       types.StringNull(),
+				BillingType:         types.StringValue("monthly"),
+				Tags:                types.ListNull(types.StringType),
+			}
+
+			body, diags := buildCreateRequest(ctx, plan)
+			if diags.HasError() {
+				t.Fatalf("unexpected diagnostics: %v", diags.Errors())
+			}
+
+			if len(body.Volumes) != 1 {
+				t.Fatalf("expected 1 volume, got %d", len(body.Volumes))
+			}
+			if body.Volumes[0].BillingType != bt {
+				t.Errorf("expected volume billing_type %q, got %q", bt, body.Volumes[0].BillingType)
+			}
+		})
+	}
+}

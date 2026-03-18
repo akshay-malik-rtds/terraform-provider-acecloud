@@ -1544,3 +1544,41 @@ func TestMapAPIResponseToState_BillingTypeReturnedFromAPI(t *testing.T) {
 		t.Errorf("expected BillingType 'monthly', got %s", model.BillingType.ValueString())
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Billing type variants — all 5 allowed values
+// ---------------------------------------------------------------------------
+
+func TestBuildAPIRequest_BillingTypeVariants(t *testing.T) {
+	billingTypes := []string{"hourly", "monthly", "quarterly", "half-yearly", "yearly"}
+
+	for _, bt := range billingTypes {
+		t.Run(bt, func(t *testing.T) {
+			ctx := context.Background()
+			var diags diag.Diagnostics
+
+			plan := &volumeResourceModel{
+				Name:             types.StringValue("bt-variant-vol"),
+				Size:             types.Int64Value(50),
+				VolumeType:       types.StringValue("ssd"),
+				BillingType:      types.StringValue(bt),
+				AvailabilityZone: types.StringNull(),
+				Description:      types.StringNull(),
+				SourceVolID:      types.StringNull(),
+				SnapshotID:       types.StringNull(),
+				BackupID:         types.StringNull(),
+				ImageRef:         types.StringNull(),
+				Metadata:         types.MapNull(types.StringType),
+			}
+
+			body := buildAPIRequest(plan, ctx, &diags)
+
+			if diags.HasError() {
+				t.Fatalf("unexpected diagnostics: %v", diags.Errors())
+			}
+			if body.BillingType != bt {
+				t.Errorf("expected billing_type %q, got %q", bt, body.BillingType)
+			}
+		})
+	}
+}

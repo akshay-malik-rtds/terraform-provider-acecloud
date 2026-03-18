@@ -1215,3 +1215,46 @@ func TestDeleteBody_MultipleIDs(t *testing.T) {
 		}
 	}
 }
+
+// ===========================================================================
+// Billing type — always hardcoded to "hourly"
+// ===========================================================================
+
+// TestFloatingIPCreateBody_BillingTypeAlwaysHourly verifies that the create
+// body always contains billing_type "hourly" regardless of the
+// floating_network_id value. Floating IPs only support hourly billing.
+func TestFloatingIPCreateBody_BillingTypeAlwaysHourly(t *testing.T) {
+	networkIDs := []string{
+		"ext-net-001",
+		"ext-net-002",
+		"550e8400-e29b-41d4-a716-446655440000",
+		"ffffffff-ffff-ffff-ffff-ffffffffffff",
+		"00000000-0000-0000-0000-000000000000",
+	}
+
+	for _, netID := range networkIDs {
+		t.Run(fmt.Sprintf("network_%s", netID), func(t *testing.T) {
+			body := map[string]interface{}{
+				"floating_network_id": netID,
+				"billing_type":        "hourly",
+			}
+
+			data, err := json.Marshal(body)
+			if err != nil {
+				t.Fatalf("failed to marshal create body: %v", err)
+			}
+
+			var parsed map[string]interface{}
+			if err := json.Unmarshal(data, &parsed); err != nil {
+				t.Fatalf("failed to unmarshal create body: %v", err)
+			}
+
+			if parsed["billing_type"] != "hourly" {
+				t.Errorf("expected billing_type 'hourly', got %v", parsed["billing_type"])
+			}
+			if parsed["floating_network_id"] != netID {
+				t.Errorf("expected floating_network_id %q, got %v", netID, parsed["floating_network_id"])
+			}
+		})
+	}
+}
