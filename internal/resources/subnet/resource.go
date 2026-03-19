@@ -202,37 +202,39 @@ func (r *subnetResource) Read(ctx context.Context, req resource.ReadRequest, res
 		state.GatewayIP = types.StringNull()
 	}
 
-	// DNS nameservers.
-	if v, ok := result["dns_nameservers"]; ok && v != nil {
-		nsJSON, _ := json.Marshal(v)
-		var nameservers []string
-		if err := json.Unmarshal(nsJSON, &nameservers); err == nil && len(nameservers) > 0 {
-			nsList, diags := types.ListValueFrom(ctx, types.StringType, nameservers)
-			resp.Diagnostics.Append(diags...)
-			state.DNSNameservers = nsList
-		} else {
-			state.DNSNameservers = types.ListNull(types.StringType)
+	// DNS nameservers — only update from API if user originally provided them.
+	// API auto-populates DNS even when user didn't set it, causing drift.
+	if !state.DNSNameservers.IsNull() {
+		if v, ok := result["dns_nameservers"]; ok && v != nil {
+			nsJSON, _ := json.Marshal(v)
+			var nameservers []string
+			if err := json.Unmarshal(nsJSON, &nameservers); err == nil && len(nameservers) > 0 {
+				nsList, diags := types.ListValueFrom(ctx, types.StringType, nameservers)
+				resp.Diagnostics.Append(diags...)
+				state.DNSNameservers = nsList
+			}
 		}
-	} else {
-		state.DNSNameservers = types.ListNull(types.StringType)
 	}
 
-	// Allocation pools.
-	if v, ok := result["allocation_pools"]; ok && v != nil {
-		poolsJSON, _ := json.Marshal(v)
-		var pools []map[string]string
-		if err := json.Unmarshal(poolsJSON, &pools); err == nil && len(pools) > 0 {
-			var poolModels []allocationPoolModel
-			for _, p := range pools {
-				poolModels = append(poolModels, allocationPoolModel{
-					Start: types.StringValue(p["start"]),
-					End:   types.StringValue(p["end"]),
-				})
+	// Allocation pools — only update from API if user originally provided them.
+	// API auto-assigns a default pool even when user didn't set one, causing drift.
+	if !state.AllocationPools.IsNull() {
+		if v, ok := result["allocation_pools"]; ok && v != nil {
+			poolsJSON, _ := json.Marshal(v)
+			var pools []map[string]string
+			if err := json.Unmarshal(poolsJSON, &pools); err == nil && len(pools) > 0 {
+				var poolModels []allocationPoolModel
+				for _, p := range pools {
+					poolModels = append(poolModels, allocationPoolModel{
+						Start: types.StringValue(p["start"]),
+						End:   types.StringValue(p["end"]),
+					})
+				}
+				poolType := state.AllocationPools.ElementType(ctx)
+				poolsList, diags := types.ListValueFrom(ctx, poolType, poolModels)
+				resp.Diagnostics.Append(diags...)
+				state.AllocationPools = poolsList
 			}
-			poolType := state.AllocationPools.ElementType(ctx)
-			poolsList, diags := types.ListValueFrom(ctx, poolType, poolModels)
-			resp.Diagnostics.Append(diags...)
-			state.AllocationPools = poolsList
 		}
 	}
 
