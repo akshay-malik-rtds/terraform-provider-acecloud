@@ -137,7 +137,7 @@ resource "acecloud_instance" "boot_from_volume" {
     billing_type = "hourly"
   }
 
-  network_ids        = ["8f0b85d7-6517-4a80-8c32-9b7d93006d48"]
+  network_ids        = [acecloud_vpc.test.id]
   security_group_ids = [acecloud_security_group.advanced_web[0].id]
 }
 

@@ -249,7 +249,7 @@ resource "acecloud_instance" "update_test" {
     billing_type = "hourly"
   }
 
-  network_ids        = ["8f0b85d7-6517-4a80-8c32-9b7d93006d48"]
+  network_ids        = [acecloud_vpc.test.id]
   security_group_ids = [acecloud_security_group.update_test[0].id]
   key_name           = acecloud_key_pair.generated.name
 
