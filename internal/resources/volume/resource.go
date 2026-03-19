@@ -323,36 +323,43 @@ func mapAPIResponseToState(model *volumeResourceModel, apiResp *volumeAPIRespons
 		model.Description = types.StringNull()
 	}
 
-	if apiResp.SourceVolID != "" {
-		model.SourceVolID = types.StringValue(apiResp.SourceVolID)
-	} else if model.SourceVolID.IsNull() {
-		model.SourceVolID = types.StringNull()
+	// For source fields (source_volid, snapshot_id, backup_id, image_ref):
+	// Only update from API if the user originally set the field.
+	// The API may return values the user didn't provide (e.g., source_volid when
+	// creating from snapshot_id), which causes Terraform "inconsistent result" errors.
+	if !model.SourceVolID.IsNull() {
+		if apiResp.SourceVolID != "" {
+			model.SourceVolID = types.StringValue(apiResp.SourceVolID)
+		}
 	}
 
-	if apiResp.SnapshotID != "" {
-		model.SnapshotID = types.StringValue(apiResp.SnapshotID)
-	} else if model.SnapshotID.IsNull() {
-		model.SnapshotID = types.StringNull()
+	if !model.SnapshotID.IsNull() {
+		if apiResp.SnapshotID != "" {
+			model.SnapshotID = types.StringValue(apiResp.SnapshotID)
+		}
 	}
 
-	if apiResp.BackupID != "" {
-		model.BackupID = types.StringValue(apiResp.BackupID)
-	} else if model.BackupID.IsNull() {
-		model.BackupID = types.StringNull()
+	if !model.BackupID.IsNull() {
+		if apiResp.BackupID != "" {
+			model.BackupID = types.StringValue(apiResp.BackupID)
+		}
 	}
 
-	if apiResp.ImageRef != "" {
-		model.ImageRef = types.StringValue(apiResp.ImageRef)
-	} else if model.ImageRef.IsNull() {
-		model.ImageRef = types.StringNull()
+	if !model.ImageRef.IsNull() {
+		if apiResp.ImageRef != "" {
+			model.ImageRef = types.StringValue(apiResp.ImageRef)
+		}
 	}
 
-	if len(apiResp.Metadata) > 0 {
-		metadataMap, d := types.MapValueFrom(ctx, types.StringType, apiResp.Metadata)
-		diags.Append(d...)
-		model.Metadata = metadataMap
-	} else if model.Metadata.IsNull() {
-		model.Metadata = types.MapNull(types.StringType)
+	// For metadata: only set from API if user provided metadata in config.
+	// API may inject metadata the user didn't set (e.g., src_backup_id when
+	// restoring from backup), causing "inconsistent result" errors.
+	if !model.Metadata.IsNull() {
+		if len(apiResp.Metadata) > 0 {
+			metadataMap, d := types.MapValueFrom(ctx, types.StringType, apiResp.Metadata)
+			diags.Append(d...)
+			model.Metadata = metadataMap
+		}
 	}
 }
 

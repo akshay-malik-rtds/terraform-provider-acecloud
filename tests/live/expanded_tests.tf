@@ -273,13 +273,13 @@ resource "acecloud_lb_listener" "ex7_http" {
   loadbalancer_id = acecloud_load_balancer.ex7_multi[0].id
 }
 
-# TCP listener on port 443
-resource "acecloud_lb_listener" "ex7_tcp" {
+# Second HTTP listener on port 8080 (ALB supports HTTP only, not TCP)
+resource "acecloud_lb_listener" "ex7_http2" {
   count = var.run_expanded_tests ? 1 : 0
 
-  name            = "tf-ex7-listener-tcp"
-  protocol        = "TCP"
-  protocol_port   = 443
+  name            = "tf-ex7-listener-http2"
+  protocol        = "HTTP"
+  protocol_port   = 8080
   loadbalancer_id = acecloud_load_balancer.ex7_multi[0].id
 
   depends_on = [acecloud_lb_listener.ex7_http]
@@ -299,13 +299,13 @@ resource "acecloud_lb_pool" "ex7_http_pool" {
 }
 
 # Pool for TCP listener
-resource "acecloud_lb_pool" "ex7_tcp_pool" {
+resource "acecloud_lb_pool" "ex7_http2_pool" {
   count = var.run_expanded_tests ? 1 : 0
 
-  name            = "tf-ex7-pool-tcp"
-  protocol        = "TCP"
+  name            = "tf-ex7-pool-http2"
+  protocol        = "HTTP"
   lb_algorithm    = "LEAST_CONNECTIONS"
-  listener_id     = acecloud_lb_listener.ex7_tcp[0].id
+  listener_id     = acecloud_lb_listener.ex7_http2[0].id
   loadbalancer_id = acecloud_load_balancer.ex7_multi[0].id
 
   depends_on = [acecloud_lb_pool.ex7_http_pool]
@@ -497,9 +497,9 @@ output "ex7_listener_http_id" {
   value       = var.run_expanded_tests ? acecloud_lb_listener.ex7_http[0].id : "skipped"
 }
 
-output "ex7_listener_tcp_id" {
-  description = "EX7: TCP listener ID"
-  value       = var.run_expanded_tests ? acecloud_lb_listener.ex7_tcp[0].id : "skipped"
+output "ex7_listener_http2_id" {
+  description = "EX7: HTTP2 listener ID"
+  value       = var.run_expanded_tests ? acecloud_lb_listener.ex7_http2[0].id : "skipped"
 }
 
 output "ex7_pool_http_id" {
@@ -507,9 +507,9 @@ output "ex7_pool_http_id" {
   value       = var.run_expanded_tests ? acecloud_lb_pool.ex7_http_pool[0].id : "skipped"
 }
 
-output "ex7_pool_tcp_id" {
-  description = "EX7: TCP pool ID"
-  value       = var.run_expanded_tests ? acecloud_lb_pool.ex7_tcp_pool[0].id : "skipped"
+output "ex7_pool_http2_id" {
+  description = "EX7: HTTP2 pool ID"
+  value       = var.run_expanded_tests ? acecloud_lb_pool.ex7_http2_pool[0].id : "skipped"
 }
 
 # --- EX9: Max Description ---

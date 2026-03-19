@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
@@ -361,7 +362,7 @@ func TestMapAPIResponseToState_WithMetadata(t *testing.T) {
 		SnapshotID:  types.StringNull(),
 		BackupID:    types.StringNull(),
 		ImageRef:    types.StringNull(),
-		Metadata:    types.MapNull(types.StringType),
+		Metadata:    types.MapValueMust(types.StringType, map[string]attr.Value{}),
 	}
 
 	apiResp := &volumeAPIResponse{
@@ -413,12 +414,12 @@ func TestMapAPIResponseToState_WithAllSourceFields(t *testing.T) {
 
 	model := &volumeResourceModel{
 		BillingType: types.StringValue("hourly"),
-		Description: types.StringNull(),
-		SourceVolID: types.StringNull(),
-		SnapshotID:  types.StringNull(),
-		BackupID:    types.StringNull(),
-		ImageRef:    types.StringNull(),
-		Metadata:    types.MapNull(types.StringType),
+		Description: types.StringValue(""),
+		SourceVolID: types.StringValue(""),
+		SnapshotID:  types.StringValue(""),
+		BackupID:    types.StringValue(""),
+		ImageRef:    types.StringValue(""),
+		Metadata:    types.MapValueMust(types.StringType, map[string]attr.Value{}),
 	}
 
 	apiResp := &volumeAPIResponse{
