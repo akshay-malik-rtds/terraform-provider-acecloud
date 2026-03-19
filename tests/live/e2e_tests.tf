@@ -201,16 +201,17 @@ output "e2e2_instance_id" {
 # Volume -> Snapshot -> Restored Volume (larger) -> Instance booting from volume
 
 resource "acecloud_volume" "e2e_chain_vol" {
-  count = var.run_e2e_tests ? 1 : 0
+  count = var.run_e2e_tests && var.image_id != "" ? 1 : 0
 
   name        = "tf-e2e-chain-vol"
-  size        = 8
+  size        = 20
   volume_type = "ssd"
-  description = "E2E-3 source volume for snapshot chain"
+  image_ref   = var.image_id
+  description = "E2E-3 bootable source volume, created from image"
 }
 
 resource "acecloud_snapshot" "e2e_chain_snap" {
-  count = var.run_e2e_tests ? 1 : 0
+  count = var.run_e2e_tests && var.image_id != "" ? 1 : 0
 
   name        = "tf-e2e-chain-snap"
   volume_id   = acecloud_volume.e2e_chain_vol[0].id
@@ -220,10 +221,10 @@ resource "acecloud_snapshot" "e2e_chain_snap" {
 }
 
 resource "acecloud_volume" "e2e_chain_restored" {
-  count = var.run_e2e_tests ? 1 : 0
+  count = var.run_e2e_tests && var.image_id != "" ? 1 : 0
 
   name        = "tf-e2e-chain-restored"
-  size        = 10
+  size        = 20
   volume_type = "ssd"
   snapshot_id = acecloud_snapshot.e2e_chain_snap[0].id
   description = "E2E-3 volume restored from snapshot, larger than original"
@@ -232,7 +233,7 @@ resource "acecloud_volume" "e2e_chain_restored" {
 }
 
 resource "acecloud_instance" "e2e_chain_instance" {
-  count = var.run_e2e_tests && var.flavor_id != "" ? 1 : 0
+  count = var.run_e2e_tests && var.flavor_id != "" && var.image_id != "" ? 1 : 0
 
   name        = "tf-e2e-chain-instance"
   description = "E2E-3 instance booting from restored volume"
@@ -244,7 +245,7 @@ resource "acecloud_instance" "e2e_chain_instance" {
   delete_on_termination = false
 
   volumes {
-    size         = 10
+    size         = 20
     boot         = true
     volume_type  = "ssd"
     billing_type = "hourly"
@@ -261,17 +262,17 @@ resource "acecloud_instance" "e2e_chain_instance" {
 
 output "e2e3_source_vol_id" {
   description = "E2E-3: Source volume ID"
-  value       = var.run_e2e_tests ? acecloud_volume.e2e_chain_vol[0].id : ""
+  value       = var.run_e2e_tests && var.image_id != "" ? acecloud_volume.e2e_chain_vol[0].id : ""
 }
 
 output "e2e3_snapshot_id" {
   description = "E2E-3: Snapshot ID"
-  value       = var.run_e2e_tests ? acecloud_snapshot.e2e_chain_snap[0].id : ""
+  value       = var.run_e2e_tests && var.image_id != "" ? acecloud_snapshot.e2e_chain_snap[0].id : ""
 }
 
 output "e2e3_restored_vol_id" {
   description = "E2E-3: Restored volume ID"
-  value       = var.run_e2e_tests ? acecloud_volume.e2e_chain_restored[0].id : ""
+  value       = var.run_e2e_tests && var.image_id != "" ? acecloud_volume.e2e_chain_restored[0].id : ""
 }
 
 output "e2e3_instance_id" {

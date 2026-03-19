@@ -32,13 +32,13 @@ type memberCreateBody struct {
 	Name           string `json:"name,omitempty"`
 	Address        string `json:"address"`
 	ProtocolPort   int64  `json:"protocol_port"`
-	Weight         int64  `json:"weight,omitempty"`
+	Weight         *int64 `json:"weight,omitempty"`
 	MonitorPort    int64  `json:"monitor_port,omitempty"`
 	MonitorAddress string `json:"monitor_address,omitempty"`
 }
 
 type memberUpdateBody struct {
-	Weight         int64  `json:"weight,omitempty"`
+	Weight         *int64 `json:"weight,omitempty"`
 	MonitorPort    int64  `json:"monitor_port,omitempty"`
 	MonitorAddress string `json:"monitor_address,omitempty"`
 }
@@ -98,7 +98,8 @@ func buildCreateRequest(plan *lbPoolMemberResourceModel) memberCreateWrapper {
 		member.Name = plan.Name.ValueString()
 	}
 	if !plan.Weight.IsNull() && !plan.Weight.IsUnknown() {
-		member.Weight = plan.Weight.ValueInt64()
+		w := plan.Weight.ValueInt64()
+		member.Weight = &w
 	}
 	if !plan.MonitorPort.IsNull() && !plan.MonitorPort.IsUnknown() {
 		member.MonitorPort = plan.MonitorPort.ValueInt64()
@@ -114,7 +115,8 @@ func buildCreateRequest(plan *lbPoolMemberResourceModel) memberCreateWrapper {
 func buildUpdateRequest(plan *lbPoolMemberResourceModel) memberUpdateBody {
 	body := memberUpdateBody{}
 	if !plan.Weight.IsNull() && !plan.Weight.IsUnknown() {
-		body.Weight = plan.Weight.ValueInt64()
+		w := plan.Weight.ValueInt64()
+		body.Weight = &w
 	}
 	if !plan.MonitorPort.IsNull() && !plan.MonitorPort.IsUnknown() {
 		body.MonitorPort = plan.MonitorPort.ValueInt64()

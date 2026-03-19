@@ -497,7 +497,7 @@ func volumeTypeFromBackend(backendType string) string {
 // (source_type, delete_on_termination, volumes spec, network IDs, script,
 // server_group_id, admin_password), so those are preserved from the existing
 // Terraform state.
-func mapReadResponseToState(_ context.Context, instance *readInstanceResponse, state *instanceResourceModel) diag.Diagnostics {
+func mapReadResponseToState(ctx context.Context, instance *readInstanceResponse, state *instanceResourceModel) diag.Diagnostics {
 	var diags diag.Diagnostics
 
 	state.ID = types.StringValue(instance.ID)
@@ -535,14 +535,35 @@ func mapReadResponseToState(_ context.Context, instance *readInstanceResponse, s
 	// Keep existing state values.
 
 	// Security group IDs — read returns [{id, name}] objects, we extracted IDs.
+	// Preserve user's ordering if the same set of SGs (API may return different order).
 	if len(instance.SecurityGroups) > 0 {
-		sgVals := make([]attr.Value, len(instance.SecurityGroups))
-		for i, sg := range instance.SecurityGroups {
-			sgVals[i] = types.StringValue(sg)
+		var existingSGs []string
+		state.SecurityGroupIDs.ElementsAs(ctx, &existingSGs, false)
+
+		sameSet := len(existingSGs) == len(instance.SecurityGroups)
+		if sameSet {
+			apiSet := make(map[string]bool, len(instance.SecurityGroups))
+			for _, sg := range instance.SecurityGroups {
+				apiSet[sg] = true
+			}
+			for _, sg := range existingSGs {
+				if !apiSet[sg] {
+					sameSet = false
+					break
+				}
+			}
 		}
-		sgList, d := types.ListValue(types.StringType, sgVals)
-		diags.Append(d...)
-		state.SecurityGroupIDs = sgList
+		if !sameSet {
+			// Different set — use API response order
+			sgVals := make([]attr.Value, len(instance.SecurityGroups))
+			for i, sg := range instance.SecurityGroups {
+				sgVals[i] = types.StringValue(sg)
+			}
+			sgList, d := types.ListValue(types.StringType, sgVals)
+			diags.Append(d...)
+			state.SecurityGroupIDs = sgList
+		}
+		// Same set — keep existing order to prevent drift
 	}
 	// If empty, keep existing state (don't overwrite with empty list).
 

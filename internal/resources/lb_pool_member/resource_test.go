@@ -35,8 +35,8 @@ func TestBuildCreateRequest_AllFields(t *testing.T) {
 	if bs.ProtocolPort != 8080 {
 		t.Errorf("expected protocol_port 8080, got %d", bs.ProtocolPort)
 	}
-	if bs.Weight != 5 {
-		t.Errorf("expected weight 5, got %d", bs.Weight)
+	if bs.Weight == nil || *bs.Weight != 5 {
+		t.Errorf("expected weight 5, got %v", bs.Weight)
 	}
 	if bs.MonitorPort != 8081 {
 		t.Errorf("expected monitor_port 8081, got %d", bs.MonitorPort)
@@ -63,8 +63,8 @@ func TestBuildCreateRequest_MinimalFields(t *testing.T) {
 	if bs.Name != "" {
 		t.Errorf("expected empty name, got %s", bs.Name)
 	}
-	if bs.Weight != 0 {
-		t.Errorf("expected weight 0, got %d", bs.Weight)
+	if bs.Weight != nil {
+		t.Errorf("expected weight nil (null plan), got %v", bs.Weight)
 	}
 }
 
@@ -146,8 +146,8 @@ func TestBuildUpdateRequest(t *testing.T) {
 
 	body := buildUpdateRequest(plan)
 
-	if body.Weight != 10 {
-		t.Errorf("expected weight 10, got %d", body.Weight)
+	if body.Weight == nil || *body.Weight != 10 {
+		t.Errorf("expected weight 10, got %v", body.Weight)
 	}
 	if body.MonitorPort != 9090 {
 		t.Errorf("expected monitor_port 9090, got %d", body.MonitorPort)
@@ -166,8 +166,8 @@ func TestBuildUpdateRequest_MinimalFields(t *testing.T) {
 
 	body := buildUpdateRequest(plan)
 
-	if body.Weight != 7 {
-		t.Errorf("expected weight 7, got %d", body.Weight)
+	if body.Weight == nil || *body.Weight != 7 {
+		t.Errorf("expected weight 7, got %v", body.Weight)
 	}
 	if body.MonitorPort != 0 {
 		t.Errorf("expected monitor_port 0 (omitted), got %d", body.MonitorPort)
@@ -575,10 +575,9 @@ func TestBuildCreateRequest_ZeroWeight(t *testing.T) {
 	body := buildCreateRequest(plan)
 	bs := body.BackendServers[0]
 
-	// Weight 0 is not null/unknown, so it should be set (but value is 0)
-	// Due to omitempty on the struct tag, 0 won't appear in JSON
-	if bs.Weight != 0 {
-		t.Errorf("expected weight 0, got %d", bs.Weight)
+	// Weight 0 is not null/unknown, so it should be set via pointer
+	if bs.Weight == nil || *bs.Weight != 0 {
+		t.Errorf("expected weight 0 (pointer), got %v", bs.Weight)
 	}
 }
 
@@ -596,8 +595,8 @@ func TestBuildCreateRequest_HighWeight(t *testing.T) {
 	body := buildCreateRequest(plan)
 	bs := body.BackendServers[0]
 
-	if bs.Weight != 256 {
-		t.Errorf("expected weight 256, got %d", bs.Weight)
+	if bs.Weight == nil || *bs.Weight != 256 {
+		t.Errorf("expected weight 256, got %v", bs.Weight)
 	}
 }
 
@@ -612,8 +611,8 @@ func TestBuildUpdateRequest_AllNull(t *testing.T) {
 
 	body := buildUpdateRequest(plan)
 
-	if body.Weight != 0 {
-		t.Errorf("expected weight 0 when null, got %d", body.Weight)
+	if body.Weight != nil {
+		t.Errorf("expected weight nil when null, got %v", body.Weight)
 	}
 	if body.MonitorPort != 0 {
 		t.Errorf("expected monitor_port 0 when null, got %d", body.MonitorPort)
