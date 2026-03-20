@@ -375,16 +375,14 @@ func (r *vpcResource) Update(ctx context.Context, req resource.UpdateRequest, re
 
 	mapAPIResponseToState(&plan, &readVPC)
 
-	// Subnet fields are immutable via VPC update — always preserve from prior state.
-	// The Read response returns "subnets":["id1","id2"] (just IDs) when multiple subnets
-	// exist, which causes parseSubnetFromRaw to pick the wrong subnet's data.
+	// Subnet fields: The VPC read response doesn't reliably return subnet details
+	// (returns "subnets":["id1","id2"] array). Preserve the *plan* values for
+	// user-configurable fields and state values for immutable fields like ID/CIDR.
 	plan.SubnetID = state.SubnetID
-	plan.SubnetName = state.SubnetName
 	plan.SubnetCIDR = state.SubnetCIDR
 	plan.SubnetIPVersion = state.SubnetIPVersion
-	plan.SubnetGatewayIP = state.SubnetGatewayIP
-	plan.SubnetEnableDHCP = state.SubnetEnableDHCP
-	plan.SubnetDNSNameservers = state.SubnetDNSNameservers
+	// SubnetName, GatewayIP, EnableDHCP, DNSNameservers — keep plan values
+	// (user's desired config) so state matches what user wrote in .tf file
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
