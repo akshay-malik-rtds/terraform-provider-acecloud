@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/acecloud/terraform-provider-acecloud/internal/client"
+	"github.com/acecloud/terraform-provider-acecloud/internal/wait"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
@@ -99,7 +100,14 @@ func mapAPIResponseToState(model *snapshotResourceModel, apiResp *snapshotAPIRes
 	}
 
 	if apiResp.Description != "" {
-		model.Description = types.StringValue(apiResp.Description)
+		// Only update from API if user set a non-empty description.
+		// If user cleared description to "", preserve empty.
+		if !model.Description.IsNull() && model.Description.ValueString() != "" {
+			model.Description = types.StringValue(apiResp.Description)
+		} else if model.Description.IsNull() {
+			// User never set description — keep null
+		}
+		// If model.Description == "", user explicitly cleared it — keep ""
 	} else if model.Description.IsNull() {
 		model.Description = types.StringNull()
 	}
@@ -218,7 +226,14 @@ func (r *snapshotResource) Update(ctx context.Context, req resource.UpdateReques
 		return
 	}
 
+	plannedDescription := plan.Description
 	mapAPIResponseToState(&plan, updated)
+
+	// Preserve plan description — omitempty skips empty string, so API may return old value
+	if !plannedDescription.IsNull() && !plannedDescription.IsUnknown() {
+		plan.Description = plannedDescription
+	}
+
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -236,7 +251,17 @@ func (r *snapshotResource) Delete(ctx context.Context, req resource.DeleteReques
 		Values: []string{state.ID.ValueString()},
 	}
 
-	_, err := r.client.Delete(ctx, deletePath, body)
+	// Snapshot deletion can fail when the source volume is busy or the
+	// snapshot is being used by another operation.
+	// npc-api returns: "...action not possible due to some process already using the..."
+	// npc-api returns: "...status must be available, but current status is in-use"
+	err := wait.RetryOnConflict(ctx, wait.RetryOnConflictOpts{
+		Operation: func(ctx context.Context) error {
+			_, err := r.client.Delete(ctx, deletePath, body)
+			return err
+		},
+		RetryableErrors: []string{"in use", "status must be available", "already using"},
+	})
 	if err != nil {
 		resp.Diagnostics.AddError("Failed to delete snapshot", err.Error())
 		return

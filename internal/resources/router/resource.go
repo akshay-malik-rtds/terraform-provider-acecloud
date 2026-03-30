@@ -105,26 +105,25 @@ func buildCreateRequest(plan *routerResourceModel) map[string]interface{} {
 }
 
 // buildUpdateRequest converts the Terraform plan to an update API request body.
-// Update supports description in addition to the create fields.
+// NOTE: npc-api router PUT rejects "description" — only name, admin_state_up,
+// and external_gateway_info are accepted on update.
 func buildUpdateRequest(plan *routerResourceModel) map[string]interface{} {
 	routerBody := map[string]interface{}{
 		"name":           plan.Name.ValueString(),
 		"admin_state_up": true,
 	}
 
-	if !plan.Description.IsNull() && !plan.Description.IsUnknown() {
-		routerBody["description"] = plan.Description.ValueString()
-	}
-
 	if !plan.AdminStateUp.IsNull() && !plan.AdminStateUp.IsUnknown() {
 		routerBody["admin_state_up"] = plan.AdminStateUp.ValueBool()
 	}
 
-	gwInfo := map[string]interface{}{}
+	// Only include external_gateway_info when gateway is set.
+	// Sending empty {} causes 400 on some backends.
 	if !plan.ExternalGatewayNetworkID.IsNull() && !plan.ExternalGatewayNetworkID.IsUnknown() {
-		gwInfo["network_id"] = plan.ExternalGatewayNetworkID.ValueString()
+		routerBody["external_gateway_info"] = map[string]interface{}{
+			"network_id": plan.ExternalGatewayNetworkID.ValueString(),
+		}
 	}
-	routerBody["external_gateway_info"] = gwInfo
 
 	return map[string]interface{}{
 		"router": routerBody,
@@ -259,7 +258,15 @@ func (r *routerResource) Update(ctx context.Context, req resource.UpdateRequest,
 		return
 	}
 
+	plannedGateway := plan.ExternalGatewayNetworkID
 	mapAPIResponseToState(&plan, updated)
+
+	// Preserve plan's gateway value — if user removed gateway (null),
+	// keep null even if API still returns the old value (async removal).
+	if plannedGateway.IsNull() && !plan.ExternalGatewayNetworkID.IsNull() {
+		plan.ExternalGatewayNetworkID = types.StringNull()
+	}
+
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 

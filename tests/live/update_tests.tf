@@ -161,8 +161,8 @@ resource "acecloud_snapshot" "update_test" {
   description = local.is_update ? "Snapshot after update" : "Initial snapshot"
 }
 
-# ─── U7: Volume Backup (create only — backend Cinder does not support PUT /backups/:id)
-# NOTE: Volume backup update returns "Backup(s) not found" on dev4 — OpenStack Cinder
+# ─── U7: Volume Backup (create only — backend does not support PUT /backups/:id)
+# NOTE: Volume backup update returns "Backup(s) not found" on dev4 — backend limitation
 # backup update requires microversion ≥3.9 which may not be enabled. The provider code
 # is correct; this is a backend limitation. Keeping static values to avoid update failure.
 resource "acecloud_volume_backup" "update_test" {

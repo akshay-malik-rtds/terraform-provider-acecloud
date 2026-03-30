@@ -262,10 +262,10 @@ variable "run_k8s_tests" {
 }
 
 resource "acecloud_k8s_cluster" "test" {
-  count = var.run_k8s_tests ? 1 : 0
+  count = var.run_k8s_tests && var.flavor_id != "" ? 1 : 0
 
   name                  = "tf-live-test-cluster"
-  kubernetes_version    = "v1.32.6"
+  kubernetes_version    = "v1.32.8+rke2r1"
   endpoint_access       = "Public and Private"
   network_isolation     = "Disabled"
   nginx_ingress         = "Enabled"
@@ -280,8 +280,51 @@ resource "acecloud_k8s_cluster" "test" {
   worker_node_name      = "tf-worker"
   worker_quantity       = 1
   flavor_id             = var.flavor_id
+  flavor_name           = "C4i.medium"
   volume_size           = 40
-  sec_group_id          = acecloud_security_group.web.id
+  # No VPC, SG, or key pair needed — K8s creates its own infra in a separate project
+}
+
+# ═══════════════════════════════════════════════════════════════
+# Phase 18: Registry Project + Replication Rule
+# ═══════════════════════════════════════════════════════════════
+
+variable "run_registry_tests" {
+  description = "Set to true to create registry resources"
+  type        = bool
+  default     = false
+}
+
+resource "acecloud_registry_project" "test" {
+  count = var.run_registry_tests ? 1 : 0
+
+  registry_name          = "tf-live-test-registry"
+  vulnerability_scanning = false
+}
+
+resource "acecloud_registry_replication_rule" "test" {
+  count = var.run_registry_tests ? 1 : 0
+
+  name    = "tf-live-test-repl-rule"
+  enabled = true
+
+  src_registry {
+    id   = 1
+    name = "local-registry"
+    url  = "https://registry.acecloud.ai"
+    type = "harbor"
+  }
+
+  trigger {
+    type = "event_based"
+  }
+
+  filter {
+    type  = "name"
+    value = "tf-live-test-registry-v2/**"
+  }
+
+  depends_on = [acecloud_registry_project.test]
 }
 
 # ═══════════════════════════════════════════════════════════════
@@ -310,6 +353,14 @@ output "caas_deployment_id" {
 
 output "caas_deployment_status" {
   value = var.run_caas_tests ? acecloud_caas_deployment.test[0].status : "skipped"
+}
+
+output "registry_project_id" {
+  value = var.run_registry_tests ? acecloud_registry_project.test[0].id : "skipped"
+}
+
+output "registry_replication_rule_id" {
+  value = var.run_registry_tests ? acecloud_registry_replication_rule.test[0].id : "skipped"
 }
 
 output "caas_deployment_dedicated_id" {

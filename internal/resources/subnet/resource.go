@@ -148,6 +148,29 @@ func (r *subnetResource) Create(ctx context.Context, req resource.CreateRequest,
 	}
 	plan.ID = types.StringValue(id)
 
+	// Set Computed Optional fields to known values if user didn't provide them
+	if plan.Description.IsNull() || plan.Description.IsUnknown() {
+		if v, ok := result["description"].(string); ok {
+			plan.Description = types.StringValue(v)
+		} else {
+			plan.Description = types.StringValue("")
+		}
+	}
+	if plan.EnableDHCP.IsNull() || plan.EnableDHCP.IsUnknown() {
+		if v, ok := result["enable_dhcp"].(bool); ok {
+			plan.EnableDHCP = types.BoolValue(v)
+		} else {
+			plan.EnableDHCP = types.BoolValue(true) // API default
+		}
+	}
+	if plan.GatewayIP.IsNull() || plan.GatewayIP.IsUnknown() {
+		if v, ok := result["gateway_ip"].(string); ok && v != "" {
+			plan.GatewayIP = types.StringValue(v)
+		} else {
+			plan.GatewayIP = types.StringValue("")
+		}
+	}
+
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -188,18 +211,20 @@ func (r *subnetResource) Read(ctx context.Context, req resource.ReadRequest, res
 	}
 	if v, ok := result["description"].(string); ok && v != "" {
 		state.Description = types.StringValue(v)
-	} else {
-		state.Description = types.StringNull()
+	} else if !state.Description.IsNull() {
+		// User set description; API returned empty — preserve empty string
+		state.Description = types.StringValue("")
 	}
+	// If user never set description (null) and API returns "", keep null
 	if v, ok := result["enable_dhcp"].(bool); ok {
 		state.EnableDHCP = types.BoolValue(v)
-	} else {
-		state.EnableDHCP = types.BoolNull()
+	} else if !state.EnableDHCP.IsNull() {
+		// User set enable_dhcp; keep existing value if API didn't return it
 	}
 	if v, ok := result["gateway_ip"].(string); ok && v != "" {
 		state.GatewayIP = types.StringValue(v)
-	} else {
-		state.GatewayIP = types.StringNull()
+	} else if !state.GatewayIP.IsNull() {
+		// User set gateway_ip; API returned empty — preserve existing value
 	}
 
 	// DNS nameservers — only update from API if user originally provided them.

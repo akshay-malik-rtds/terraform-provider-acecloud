@@ -363,7 +363,16 @@ func (r *instanceResource) Delete(ctx context.Context, req resource.DeleteReques
 		Values: []string{id},
 	}
 
-	_, err := r.client.Delete(ctx, "/cloud/instances", body)
+	// Instance deletion can fail transiently when the instance is in a
+	// transitional state (e.g. volumes/ports still detaching).
+	// npc-api returns: "Cannot perform this action on the instance in current state"
+	err := wait.RetryOnConflict(ctx, wait.RetryOnConflictOpts{
+		Operation: func(ctx context.Context) error {
+			_, err := r.client.Delete(ctx, "/cloud/instances", body)
+			return err
+		},
+		RetryableErrors: []string{"Cannot perform this action", "in current state"},
+	})
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Failed to delete instance",

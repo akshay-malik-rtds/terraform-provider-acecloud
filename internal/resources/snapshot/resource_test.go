@@ -304,8 +304,9 @@ func TestMapAPIResponseToState_AllFields(t *testing.T) {
 	if model.VolumeID.ValueString() != "vol-full-xyz" {
 		t.Errorf("expected VolumeID vol-full-xyz, got %s", model.VolumeID.ValueString())
 	}
-	if model.Description.ValueString() != "Full snapshot with all fields" {
-		t.Errorf("expected Description 'Full snapshot with all fields', got %s", model.Description.ValueString())
+	// When model Description is null (user didn't set), API value is NOT injected.
+	if !model.Description.IsNull() {
+		t.Errorf("expected Description null (user didn't set), got %s", model.Description.ValueString())
 	}
 	if model.Status.ValueString() != "available" {
 		t.Errorf("expected Status available, got %s", model.Status.ValueString())
@@ -517,7 +518,7 @@ func TestMapAPIResponseToState_TableDriven(t *testing.T) {
 				CreatedAt: "2024-01-01T00:00:00Z", UpdatedAt: "2024-01-02T00:00:00Z",
 			},
 			wantID: "snap-t1", wantName: "t1", wantStatus: "available", wantSize: 10,
-			wantDescNull: false, wantDescVal: "desc-t1",
+			wantDescNull: true,
 		},
 		{
 			name:            "empty desc keeps null",

@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/acecloud/terraform-provider-acecloud/internal/client"
+	"github.com/acecloud/terraform-provider-acecloud/internal/wait"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
@@ -399,7 +400,16 @@ func (r *vpcResource) Delete(ctx context.Context, req resource.DeleteRequest, re
 		Values: []string{state.ID.ValueString()},
 	}
 
-	_, err := r.client.Delete(ctx, vpcBasePath, body)
+	// VPC deletion may fail transiently when ports from recently-destroyed
+	// sub-resources (LBs, instances, router interfaces) haven't fully
+	// drained yet. Retry with "ports still in use" as a retryable pattern.
+	err := wait.RetryOnConflict(ctx, wait.RetryOnConflictOpts{
+		Operation: func(ctx context.Context) error {
+			_, err := r.client.Delete(ctx, vpcBasePath, body)
+			return err
+		},
+		RetryableErrors: []string{"ports still in use"},
+	})
 	if err != nil {
 		resp.Diagnostics.AddError("Failed to delete VPC", err.Error())
 	}

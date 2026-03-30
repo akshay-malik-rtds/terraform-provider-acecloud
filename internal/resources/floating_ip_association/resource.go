@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/acecloud/terraform-provider-acecloud/internal/client"
+	"github.com/acecloud/terraform-provider-acecloud/internal/wait"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
@@ -124,9 +125,18 @@ func (r *floatingIPAssociationResource) Delete(ctx context.Context, req resource
 		InstanceID:        state.InstanceID.ValueString(),
 	}
 
-	// PUT /cloud/floating-ips/action?type=detach
-	_, err := r.client.PutWithParams(ctx, apiPath, body, map[string]string{
-		"type": "detach",
+	// FIP detach can fail transiently when the instance port is in a
+	// transitional state during concurrent destroy operations.
+	// npc-api returns: "Cannot perform this action on the instance in current state"
+	err := wait.RetryOnConflict(ctx, wait.RetryOnConflictOpts{
+		Operation: func(ctx context.Context) error {
+			// PUT /cloud/floating-ips/action?type=detach
+			_, err := r.client.PutWithParams(ctx, apiPath, body, map[string]string{
+				"type": "detach",
+			})
+			return err
+		},
+		RetryableErrors: []string{"Cannot perform this action", "in current state"},
 	})
 	if err != nil {
 		resp.Diagnostics.AddError("Failed to disassociate floating IP", err.Error())

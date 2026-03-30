@@ -263,11 +263,15 @@ func (r *securityGroupResource) Read(ctx context.Context, req resource.ReadReque
 	if v, ok := result["name"].(string); ok {
 		state.Name = types.StringValue(v)
 	}
-	if v, ok := result["description"].(string); ok {
+	if v, ok := result["description"].(string); ok && v != "" {
 		state.Description = types.StringValue(v)
-	} else {
-		state.Description = types.StringNull()
+	} else if !state.Description.IsNull() {
+		// User set description — preserve API value (even empty)
+		if v, ok := result["description"].(string); ok {
+			state.Description = types.StringValue(v)
+		}
 	}
+	// If user never set description (null) and API returns "", keep null
 
 	// Rules: preserve the user's configured rules rather than trying to reconcile
 	// with backend rules. The backend transforms protocol names (e.g. "tcp" → "Custom TCP",

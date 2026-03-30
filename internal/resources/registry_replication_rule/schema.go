@@ -91,7 +91,7 @@ func registryBlockSchema(description string, required bool) schema.SingleNestedB
 				Optional:    !required,
 			},
 			"type": schema.StringAttribute{
-				Description: "Registry type (e.g. harbor, docker-hub, aws-ecr).",
+				Description: "Registry type (e.g. docker-hub, aws-ecr).",
 				Required:    required,
 				Optional:    !required,
 			},
@@ -129,14 +129,17 @@ func replicationRuleSchema() schema.Schema {
 			"replicate_deletion": schema.BoolAttribute{
 				Description: "Whether to replicate artifact deletion.",
 				Optional:    true,
+				Computed:    true,
 			},
 			"override": schema.BoolAttribute{
 				Description: "Whether to override resources at the destination.",
 				Optional:    true,
+				Computed:    true,
 			},
 			"speed": schema.Int64Attribute{
 				Description: "Maximum network bandwidth in Kbps for replication. -1 for unlimited.",
 				Optional:    true,
+				Computed:    true,
 			},
 			"created_at": schema.StringAttribute{
 				Description: "Timestamp when the replication rule was created.",

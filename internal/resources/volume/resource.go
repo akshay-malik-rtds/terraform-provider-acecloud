@@ -7,6 +7,7 @@ import (
 	"regexp"
 
 	"github.com/acecloud/terraform-provider-acecloud/internal/client"
+	"github.com/acecloud/terraform-provider-acecloud/internal/wait"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -192,9 +193,10 @@ func (r *volumeResource) Update(ctx context.Context, req resource.UpdateRequest,
 		return
 	}
 
-	// Save the planned size before mapping — volume resize is async, so the
-	// API response may still report the old size.
+	// Save plan values before mapping — API response may differ from plan
 	plannedSize := plan.Size
+	plannedMetadata := plan.Metadata
+	plannedDescription := plan.Description
 
 	mapAPIResponseToState(&plan, &updated, ctx, &resp.Diagnostics)
 	if resp.Diagnostics.HasError() {
@@ -206,6 +208,19 @@ func (r *volumeResource) Update(ctx context.Context, req resource.UpdateRequest,
 	// up the final size.
 	if !plannedSize.Equal(state.Size) {
 		plan.Size = plannedSize
+	}
+
+	// If the user explicitly set metadata (even to empty {}), keep the plan value.
+	// The API may return old metadata that wasn't cleared, but the plan is the
+	// user's desired state.
+	if !plannedMetadata.IsNull() && !plannedMetadata.IsUnknown() {
+		plan.Metadata = plannedMetadata
+	}
+
+	// If the user explicitly set description (even to ""), keep the plan value.
+	// The API omitempty skips empty string so old description persists on backend.
+	if !plannedDescription.IsNull() && !plannedDescription.IsUnknown() {
+		plan.Description = plannedDescription
 	}
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
@@ -223,7 +238,18 @@ func (r *volumeResource) Delete(ctx context.Context, req resource.DeleteRequest,
 		Values: []string{state.ID.ValueString()},
 	}
 
-	_, err := r.client.Delete(ctx, volumeBasePath, body)
+	// Volume deletion can fail transiently when the volume is still attached
+	// or a snapshot/backup operation is in progress.
+	// npc-api returns: "Volume either already in use or volume snapshot is available"
+	// npc-api returns: "...is either attached to an instance or is currently in use"
+	// npc-api returns: "...status must be available to perform the action"
+	err := wait.RetryOnConflict(ctx, wait.RetryOnConflictOpts{
+		Operation: func(ctx context.Context) error {
+			_, err := r.client.Delete(ctx, volumeBasePath, body)
+			return err
+		},
+		RetryableErrors: []string{"in use", "attached to an instance", "status must be available"},
+	})
 	if err != nil {
 		resp.Diagnostics.AddError("Failed to delete volume", err.Error())
 		return
@@ -318,7 +344,14 @@ func mapAPIResponseToState(model *volumeResourceModel, apiResp *volumeAPIRespons
 	}
 
 	if apiResp.Description != "" {
-		model.Description = types.StringValue(apiResp.Description)
+		// Only update from API if user originally set a non-empty description.
+		// If user explicitly set description="" (clearing it), preserve "".
+		if !model.Description.IsNull() && model.Description.ValueString() != "" {
+			model.Description = types.StringValue(apiResp.Description)
+		} else if model.Description.IsNull() {
+			// User never set description; API has a value — keep null
+		}
+		// If model.Description == "", user explicitly cleared it — keep ""
 	} else if model.Description.IsNull() {
 		model.Description = types.StringNull()
 	}
@@ -351,10 +384,11 @@ func mapAPIResponseToState(model *volumeResourceModel, apiResp *volumeAPIRespons
 		}
 	}
 
-	// For metadata: only set from API if user provided metadata in config.
+	// For metadata: only update from API if user provided non-empty metadata.
 	// API may inject metadata the user didn't set (e.g., src_backup_id when
 	// restoring from backup), causing "inconsistent result" errors.
-	if !model.Metadata.IsNull() {
+	// If user set metadata = {} (empty map), preserve it — don't overwrite with API data.
+	if !model.Metadata.IsNull() && len(model.Metadata.Elements()) > 0 {
 		if len(apiResp.Metadata) > 0 {
 			metadataMap, d := types.MapValueFrom(ctx, types.StringType, apiResp.Metadata)
 			diags.Append(d...)

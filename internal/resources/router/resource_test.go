@@ -138,9 +138,9 @@ func TestBuildUpdateRequest_AllFields(t *testing.T) {
 	if routerBody["name"] != "updated-router" {
 		t.Errorf("expected name updated-router, got %v", routerBody["name"])
 	}
-	// Update request SHOULD include description
-	if routerBody["description"] != "Updated description" {
-		t.Errorf("expected description 'Updated description', got %v", routerBody["description"])
+	// Update request should NOT include description (npc-api rejects it)
+	if _, exists := routerBody["description"]; exists {
+		t.Error("expected description to NOT be present in update request")
 	}
 	if routerBody["admin_state_up"] != false {
 		t.Error("expected admin_state_up to be false")
@@ -184,13 +184,10 @@ func TestBuildUpdateRequest_MinimalFields(t *testing.T) {
 		t.Error("expected admin_state_up to default to true")
 	}
 
-	// external_gateway_info should be empty map when no gateway
-	gwInfo, ok := routerBody["external_gateway_info"].(map[string]interface{})
-	if !ok {
-		t.Fatal("expected external_gateway_info to be map[string]interface{}")
-	}
-	if len(gwInfo) != 0 {
-		t.Error("expected empty external_gateway_info when no network ID is set")
+	// external_gateway_info should NOT be present when no gateway is set
+	// (sending empty {} causes 400 on some backends)
+	if _, exists := routerBody["external_gateway_info"]; exists {
+		t.Error("expected external_gateway_info to NOT be present when no gateway is set")
 	}
 }
 
@@ -222,8 +219,9 @@ func TestBuildUpdateRequest_JSON(t *testing.T) {
 	if routerMap["name"] != "json-router" {
 		t.Errorf("expected name 'json-router', got %v", routerMap["name"])
 	}
-	if routerMap["description"] != "JSON test desc" {
-		t.Errorf("expected description 'JSON test desc', got %v", routerMap["description"])
+	// Description is not sent on update (npc-api rejects it)
+	if _, exists := routerMap["description"]; exists {
+		t.Error("expected description to NOT be in update JSON")
 	}
 	if routerMap["admin_state_up"] != true {
 		t.Errorf("expected admin_state_up true, got %v", routerMap["admin_state_up"])
@@ -856,8 +854,7 @@ func TestBuildUpdateRequest_TableDriven(t *testing.T) {
 			planGatewayNetID:  types.StringValue("ext-upd-1"),
 			expectAdminState:  false,
 			expectGatewayID:   "ext-upd-1",
-			expectDescription: true,
-			expectedDescValue: "Updated desc",
+			expectDescription: false, // npc-api rejects description on PUT
 		},
 		{
 			name:              "null description omitted",
@@ -880,15 +877,14 @@ func TestBuildUpdateRequest_TableDriven(t *testing.T) {
 			expectDescription: false,
 		},
 		{
-			name:              "empty string description included",
+			name:              "empty string description not sent",
 			planName:          "empty-desc",
 			planDescription:   types.StringValue(""),
 			planAdminStateUp:  types.BoolValue(true),
 			planGatewayNetID:  types.StringNull(),
 			expectAdminState:  true,
 			expectGatewayID:   "",
-			expectDescription: true,
-			expectedDescValue: "",
+			expectDescription: false, // npc-api rejects description on PUT
 		},
 		{
 			name:              "admin_state_up explicitly false",
@@ -947,18 +943,18 @@ func TestBuildUpdateRequest_TableDriven(t *testing.T) {
 				t.Errorf("expected description %q, got %v", tc.expectedDescValue, descVal)
 			}
 
-			gwInfo, ok := routerBody["external_gateway_info"].(map[string]interface{})
-			if !ok {
-				t.Fatal("expected external_gateway_info to be a map")
-			}
-
+			// buildUpdateRequest omits external_gateway_info when no gateway is set
 			if tc.expectGatewayID != "" {
+				gwInfo, ok := routerBody["external_gateway_info"].(map[string]interface{})
+				if !ok {
+					t.Fatal("expected external_gateway_info to be a map when gateway is set")
+				}
 				if gwInfo["network_id"] != tc.expectGatewayID {
 					t.Errorf("expected gateway network_id %q, got %v", tc.expectGatewayID, gwInfo["network_id"])
 				}
 			} else {
-				if len(gwInfo) != 0 {
-					t.Errorf("expected empty gateway info, got %v", gwInfo)
+				if _, exists := routerBody["external_gateway_info"]; exists {
+					t.Error("expected external_gateway_info to NOT be present when no gateway is set")
 				}
 			}
 		})
@@ -1444,13 +1440,9 @@ func TestCreateVsUpdate_DescriptionDifference(t *testing.T) {
 		t.Error("create request must NOT include description")
 	}
 
-	// Update MUST have description
-	desc, exists := updateRouter["description"]
-	if !exists {
-		t.Error("update request must include description")
-	}
-	if desc != "My description" {
-		t.Errorf("expected description 'My description', got %v", desc)
+	// Update must NOT have description (npc-api rejects it)
+	if _, exists := updateRouter["description"]; exists {
+		t.Error("update request must NOT include description (npc-api rejects it)")
 	}
 }
 
@@ -1521,8 +1513,9 @@ func TestBuildUpdateRequest_JSONSerialization(t *testing.T) {
 	}
 
 	router := parsed["router"]
-	if router["description"] != "Update desc" {
-		t.Errorf("expected description 'Update desc', got %v", router["description"])
+	// Description is NOT sent on update (npc-api rejects it)
+	if _, exists := router["description"]; exists {
+		t.Error("expected description to NOT be in update JSON")
 	}
 	if router["admin_state_up"] != false {
 		t.Errorf("expected admin_state_up false, got %v", router["admin_state_up"])

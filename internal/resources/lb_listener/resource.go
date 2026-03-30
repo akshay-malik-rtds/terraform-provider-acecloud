@@ -171,7 +171,7 @@ func (r *lbListenerResource) Create(ctx context.Context, req resource.CreateRequ
 		},
 	})
 	if err != nil {
-		resp.Diagnostics.AddError("Listener not found after creation",
+		resp.Diagnostics.AddError("Failed to create LB listener",
 			fmt.Sprintf("Listener %q for LB %s was not found after polling: %s", targetName, targetLBID, err))
 		return
 	}

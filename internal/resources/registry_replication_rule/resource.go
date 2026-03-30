@@ -39,19 +39,20 @@ type replicationRuleCreateRequest struct {
 }
 
 type registryRequest struct {
-	ID   int64  `json:"id"`
-	Name string `json:"name"`
-	URL  string `json:"url"`
-	Type string `json:"type"`
+	ID         int64  `json:"id"`
+	Name       string `json:"name"`
+	URL        string `json:"url"`
+	Type       string `json:"type"`
+	UpdateTime string `json:"update_time,omitempty"`
 }
 
 type triggerRequest struct {
-	Type            string                 `json:"type"`
-	TriggerSettings *triggerSettingsRequest `json:"trigger_settings,omitempty"`
+	Type            string                `json:"type"`
+	TriggerSettings triggerSettingsRequest `json:"trigger_settings"`
 }
 
 type triggerSettingsRequest struct {
-	Cron string `json:"cron,omitempty"`
+	Cron string `json:"cron"`
 }
 
 type filterRequest struct {
@@ -137,10 +138,11 @@ func buildRegistryRequest(ctx context.Context, obj types.Object) *registryReques
 	var reg registryModel
 	obj.As(ctx, &reg, basetypes.ObjectAsOptions{})
 	return &registryRequest{
-		ID:   reg.ID.ValueInt64(),
-		Name: reg.Name.ValueString(),
-		URL:  reg.URL.ValueString(),
-		Type: reg.Type.ValueString(),
+		ID:         reg.ID.ValueInt64(),
+		Name:       reg.Name.ValueString(),
+		URL:        reg.URL.ValueString(),
+		Type:       reg.Type.ValueString(),
+		UpdateTime: "2026-01-01T00:00:00.000Z",
 	}
 }
 
@@ -151,12 +153,11 @@ func buildTriggerRequest(ctx context.Context, obj types.Object) *triggerRequest 
 	var trig triggerModel
 	obj.As(ctx, &trig, basetypes.ObjectAsOptions{})
 	req := &triggerRequest{
-		Type: trig.Type.ValueString(),
+		Type:            trig.Type.ValueString(),
+		TriggerSettings: triggerSettingsRequest{},
 	}
 	if !trig.Cron.IsNull() && !trig.Cron.IsUnknown() {
-		req.TriggerSettings = &triggerSettingsRequest{
-			Cron: trig.Cron.ValueString(),
-		}
+		req.TriggerSettings.Cron = trig.Cron.ValueString()
 	}
 	return req
 }
@@ -237,29 +238,23 @@ func mapAPIResponseToState(ctx context.Context, model *replicationRuleModel, api
 
 	model.Enabled = types.BoolValue(apiResp.Enabled)
 
-	// src_registry
-	if apiResp.SrcRegistry != nil {
-		srcObj, _ := types.ObjectValueFrom(ctx, registryAttrTypes(), &registryModel{
-			ID:   types.Int64Value(apiResp.SrcRegistry.ID),
-			Name: types.StringValue(apiResp.SrcRegistry.Name),
-			URL:  types.StringValue(apiResp.SrcRegistry.URL),
-			Type: types.StringValue(apiResp.SrcRegistry.Type),
-		})
-		model.SrcRegistry = srcObj
+	// src_registry — preserve user's configured values (API may return different name/url)
+	// Only update from API on first Read (when model has no src_registry yet)
+	if model.SrcRegistry.IsNull() || model.SrcRegistry.IsUnknown() {
+		if apiResp.SrcRegistry != nil {
+			srcObj, _ := types.ObjectValueFrom(ctx, registryAttrTypes(), &registryModel{
+				ID:   types.Int64Value(apiResp.SrcRegistry.ID),
+				Name: types.StringValue(apiResp.SrcRegistry.Name),
+				URL:  types.StringValue(apiResp.SrcRegistry.URL),
+				Type: types.StringValue(apiResp.SrcRegistry.Type),
+			})
+			model.SrcRegistry = srcObj
+		}
 	}
 
-	// dest_registry
-	if apiResp.DestRegistry != nil {
-		destObj, _ := types.ObjectValueFrom(ctx, registryAttrTypes(), &registryModel{
-			ID:   types.Int64Value(apiResp.DestRegistry.ID),
-			Name: types.StringValue(apiResp.DestRegistry.Name),
-			URL:  types.StringValue(apiResp.DestRegistry.URL),
-			Type: types.StringValue(apiResp.DestRegistry.Type),
-		})
-		model.DestRegistry = destObj
-	} else {
-		model.DestRegistry = types.ObjectNull(registryAttrTypes())
-	}
+	// dest_registry — NEVER update from API when user didn't configure it.
+	// The API always returns a local dest_registry even when not set.
+	// Preserve user's configured value (or null if not configured).
 
 	// dest_namespace
 	if apiResp.DestNamespace != "" {
@@ -307,8 +302,8 @@ func mapAPIResponseToState(ctx context.Context, model *replicationRuleModel, api
 
 	if apiResp.Speed != 0 {
 		model.Speed = types.Int64Value(apiResp.Speed)
-	} else if model.Speed.IsNull() {
-		model.Speed = types.Int64Null()
+	} else if model.Speed.IsNull() || model.Speed.IsUnknown() {
+		model.Speed = types.Int64Value(0)
 	}
 
 	if apiResp.CreatedAt != "" {
@@ -335,36 +330,43 @@ func (r *registryReplicationRuleResource) Create(ctx context.Context, req resour
 
 	body := buildCreateRequest(ctx, &plan)
 
-	apiResp, err := r.client.Post(ctx, basePath, body)
+	_, err := r.client.Post(ctx, basePath, body)
 	if err != nil {
 		resp.Diagnostics.AddError("Failed to create registry replication rule", err.Error())
 		return
 	}
 
-	// Parse the create response to get the integer ID
-	var createResp replicationRuleAPIResponse
-	if err := json.Unmarshal(apiResp.Data, &createResp); err != nil {
-		resp.Diagnostics.AddError("Failed to parse registry replication rule response", err.Error())
-		return
-	}
-
-	plan.ID = types.StringValue(fmt.Sprintf("%d", createResp.ID))
-
-	// Read back to get full state
-	readPath := fmt.Sprintf("%s/%d", basePath, createResp.ID)
-	readResp, err := r.client.Get(ctx, readPath, nil)
+	// Create response returns {message: "Successfully Created"} with no data.
+	// Poll the list endpoint to find the created rule by name.
+	targetName := plan.Name.ValueString()
+	listResp, err := r.client.Get(ctx, basePath, nil)
 	if err != nil {
-		resp.Diagnostics.AddError("Failed to read registry replication rule", err.Error())
+		resp.Diagnostics.AddError("Failed to list registry replication rules", err.Error())
 		return
 	}
 
-	var fullResp replicationRuleAPIResponse
-	if err := json.Unmarshal(readResp.Data, &fullResp); err != nil {
-		resp.Diagnostics.AddError("Failed to parse registry replication rule response", err.Error())
+	var rules []replicationRuleAPIResponse
+	if err := json.Unmarshal(listResp.Data, &rules); err != nil {
+		resp.Diagnostics.AddError("Failed to parse registry replication rule list", err.Error())
 		return
 	}
 
-	mapAPIResponseToState(ctx, &plan, &fullResp)
+	var fullResp *replicationRuleAPIResponse
+	for i, rule := range rules {
+		if rule.Name == targetName {
+			fullResp = &rules[i]
+			break
+		}
+	}
+	if fullResp == nil {
+		resp.Diagnostics.AddError("Failed to create registry replication rule",
+			fmt.Sprintf("Rule %q was not found in the list after creation", targetName))
+		return
+	}
+
+	plan.ID = types.StringValue(fmt.Sprintf("%d", fullResp.ID))
+
+	mapAPIResponseToState(ctx, &plan, fullResp)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 

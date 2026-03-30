@@ -203,7 +203,7 @@ func (r *lbPoolMemberResource) Create(ctx context.Context, req resource.CreateRe
 		ErrorStatus:  []string{"ERROR"},
 	})
 	if err != nil {
-		resp.Diagnostics.AddError("Timeout waiting for pool to become active", err.Error())
+		resp.Diagnostics.AddError("Failed to create pool member", err.Error())
 		return
 	}
 
@@ -247,7 +247,7 @@ func (r *lbPoolMemberResource) Create(ctx context.Context, req resource.CreateRe
 		},
 	})
 	if err != nil {
-		resp.Diagnostics.AddError("Pool member not found after creation",
+		resp.Diagnostics.AddError("Failed to create pool member",
 			fmt.Sprintf("Member %s:%d was not found in pool %s after polling: %s", targetAddress, targetPort, poolID, err))
 		return
 	}

@@ -8,6 +8,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
@@ -60,34 +62,52 @@ func (r *subnetResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 				Required:    true,
 			},
 			"cidr": schema.StringAttribute{
-				Description: "CIDR block for the subnet (e.g. 10.0.1.0/24). Must be a valid IPv4 CIDR.",
+				Description: "CIDR block for the subnet (e.g. 10.0.1.0/24). Must be a valid IPv4 CIDR. Changing this forces recreation.",
 				Required:    true,
 				Validators: []validator.String{
 					stringvalidator.RegexMatches(cidrRegex, "must be a valid CIDR (e.g. 192.168.1.0/24)"),
 				},
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"vpc_id": schema.StringAttribute{
-				Description: "ID of the VPC (network) this subnet belongs to.",
+				Description: "ID of the VPC (network) this subnet belongs to. Changing this forces recreation.",
 				Optional:    true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"ip_version": schema.Int64Attribute{
-				Description: "IP version for the subnet. Must be 4 or 6.",
+				Description: "IP version for the subnet. Must be 4 or 6. Changing this forces recreation.",
 				Required:    true,
 				Validators: []validator.Int64{
 					int64validator.OneOf(4, 6),
+				},
+				PlanModifiers: []planmodifier.Int64{
+					int64planmodifier.RequiresReplace(),
 				},
 			},
 			"description": schema.StringAttribute{
 				Description: "Description of the subnet.",
 				Optional:    true,
+				Computed:    true,
 			},
 			"enable_dhcp": schema.BoolAttribute{
 				Description: "Whether DHCP is enabled on the subnet.",
 				Optional:    true,
+				Computed:    true,
+				PlanModifiers: []planmodifier.Bool{
+					boolplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"gateway_ip": schema.StringAttribute{
-				Description: "Gateway IP address for the subnet.",
+				Description: "Gateway IP address for the subnet. Auto-assigned if omitted.",
 				Optional:    true,
+				Computed:    true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"dns_nameservers": schema.ListAttribute{
 				Description: "List of DNS nameserver IP addresses.",

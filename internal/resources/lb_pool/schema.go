@@ -41,11 +41,14 @@ func lbPoolSchema() schema.Schema {
 				},
 			},
 			"name": schema.StringAttribute{
-				Description: "Name of the pool.",
+				Description: "Name of the pool. Changing this forces recreation.",
 				Required:    true,
 				Validators: []validator.String{
 					stringvalidator.LengthBetween(1, 100),
 					stringvalidator.RegexMatches(poolNameRegex, "must contain only letters, numbers, and hyphens"),
+				},
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
 				},
 			},
 			"protocol": schema.StringAttribute{

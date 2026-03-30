@@ -39,13 +39,19 @@ func (r *floatingIPResource) Schema(_ context.Context, _ resource.SchemaRequest,
 				},
 			},
 			"port_id": schema.StringAttribute{
-				Description: "ID of the port to associate the floating IP with.",
+				Description: "ID of the port to associate the floating IP with. Changing this forces recreation.",
 				Optional:    true,
 				Computed:    true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"description": schema.StringAttribute{
-				Description: "Description of the floating IP.",
+				Description: "Description of the floating IP. Changing this forces recreation.",
 				Optional:    true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"floating_ip_address": schema.StringAttribute{
 				Description: "The allocated floating IP address.",

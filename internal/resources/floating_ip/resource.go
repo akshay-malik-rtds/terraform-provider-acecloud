@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/acecloud/terraform-provider-acecloud/internal/client"
+	"github.com/acecloud/terraform-provider-acecloud/internal/wait"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
@@ -151,9 +152,11 @@ func (r *floatingIPResource) Read(ctx context.Context, req resource.ReadRequest,
 	}
 	if v, ok := result["description"].(string); ok && v != "" {
 		state.Description = types.StringValue(v)
-	} else {
-		state.Description = types.StringNull()
+	} else if !state.Description.IsNull() {
+		// User set description; API returned empty — preserve empty string
+		state.Description = types.StringValue("")
 	}
+	// If user never set description (null) and API returns "", keep null
 	if v, ok := result["floating_ip_address"].(string); ok {
 		state.FloatingIPAddress = types.StringValue(v)
 	}
@@ -187,7 +190,17 @@ func (r *floatingIPResource) Delete(ctx context.Context, req resource.DeleteRequ
 		"values": []string{state.ID.ValueString()},
 	}
 
-	_, err := r.client.Delete(ctx, apiPath, body)
+	// Floating IP deletion can fail if it's still associated with a port
+	// that is draining after instance destruction.
+	// npc-api returns: "...is either attached or already released"
+	// npc-api returns: "Floating IP is already associated with a port"
+	err := wait.RetryOnConflict(ctx, wait.RetryOnConflictOpts{
+		Operation: func(ctx context.Context) error {
+			_, err := r.client.Delete(ctx, apiPath, body)
+			return err
+		},
+		RetryableErrors: []string{"either attached", "already associated"},
+	})
 	if err != nil {
 		resp.Diagnostics.AddError("Failed to delete floating IP", err.Error())
 		return

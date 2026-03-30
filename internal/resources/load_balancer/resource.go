@@ -244,7 +244,7 @@ func (r *loadBalancerResource) Create(ctx context.Context, req resource.CreateRe
 	if len(apiResp.Data) == 0 {
 		resp.Diagnostics.AddError(
 			"Failed to create load balancer",
-			fmt.Sprintf("API returned empty data. Error=%v, Message=%s", apiResp.Error, apiResp.Message),
+			"The API returned an empty response when creating the load balancer",
 		)
 		return
 	}

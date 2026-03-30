@@ -44,6 +44,7 @@ type k8sClusterResourceModel struct {
 	WorkerNodeName      types.String `tfsdk:"worker_node_name"`
 	WorkerQuantity      types.Int64  `tfsdk:"worker_quantity"`
 	FlavorID            types.String `tfsdk:"flavor_id"`
+	FlavorName          types.String `tfsdk:"flavor_name"`
 	VolumeSize          types.Int64  `tfsdk:"volume_size"`
 	SecGroupID          types.String `tfsdk:"sec_group_id"`
 	Status              types.String `tfsdk:"status"`
@@ -174,6 +175,13 @@ func (r *k8sClusterResource) Schema(_ context.Context, _ resource.SchemaRequest,
 					stringplanmodifier.RequiresReplace(),
 				},
 			},
+			"flavor_name": schema.StringAttribute{
+				Description: "Name of the flavor for worker nodes (e.g. C4i.medium). Required for RKE2 provisioning.",
+				Optional:    true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
+			},
 			"volume_size": schema.Int64Attribute{
 				Description: "Volume size in GB for worker nodes.",
 				Required:    true,
@@ -239,6 +247,9 @@ func (r *k8sClusterResource) Schema(_ context.Context, _ resource.SchemaRequest,
 			"created_at": schema.StringAttribute{
 				Description: "Timestamp when the cluster was created.",
 				Computed:    true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 		},
 	}

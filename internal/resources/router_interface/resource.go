@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/acecloud/terraform-provider-acecloud/internal/client"
+	"github.com/acecloud/terraform-provider-acecloud/internal/wait"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
@@ -212,7 +213,17 @@ func (r *routerInterfaceResource) Delete(ctx context.Context, req resource.Delet
 		Values: []string{state.ID.ValueString()},
 	}
 
-	_, err := r.client.Delete(ctx, path, body)
+	// Router interface deletion can fail when the port is still draining
+	// after LB or instance destruction.
+	// npc-api returns: "Interface already in use"
+	// npc-api returns: "Port is already in use"
+	err := wait.RetryOnConflict(ctx, wait.RetryOnConflictOpts{
+		Operation: func(ctx context.Context) error {
+			_, err := r.client.Delete(ctx, path, body)
+			return err
+		},
+		RetryableErrors: []string{"already in use", "Port is already in use"},
+	})
 	if err != nil {
 		resp.Diagnostics.AddError("Failed to delete router interface", err.Error())
 		return

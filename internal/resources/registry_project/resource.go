@@ -148,7 +148,8 @@ func (r *registryProjectResource) Delete(ctx context.Context, req resource.Delet
 		return
 	}
 
-	path := fmt.Sprintf("%s/%s", apiPath, state.ID.ValueString())
+	// Registry API DELETE requires the registry name, not the numeric ID.
+	path := fmt.Sprintf("%s/%s", apiPath, state.RegistryName.ValueString())
 	_, err := r.client.Delete(ctx, path, nil)
 	if err != nil {
 		resp.Diagnostics.AddError("Failed to delete registry project", err.Error())
@@ -176,7 +177,7 @@ func (r *registryProjectResource) readIntoState(ctx context.Context, state *regi
 	targetName := state.RegistryName.ValueString()
 	var found map[string]interface{}
 	for _, p := range projects {
-		if name, ok := p["name"].(string); ok && name == targetName {
+		if name, ok := p["registry_name"].(string); ok && name == targetName {
 			found = p
 			break
 		}

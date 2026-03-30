@@ -17,9 +17,18 @@ import (
 // sanitizeErrorMessage strips internal backend details (OpenStack service names,
 // error structures, stack traces, UUIDs) from API error messages so that
 // Terraform output never leaks implementation details to end users.
+// It preserves diagnostic content (fault values, not-found context) while
+// removing only implementation-specific labels.
 func sanitizeErrorMessage(msg string) string {
 	if msg == "" {
 		return msg
+	}
+
+	// If the message looks like a raw JSON validation object, flatten it first.
+	if strings.HasPrefix(strings.TrimSpace(msg), "{") {
+		if flattened := flattenJSONError(msg); flattened != "" {
+			msg = flattened
+		}
 	}
 
 	// Replace known leaky messages with user-friendly alternatives.
@@ -43,19 +52,67 @@ func sanitizeErrorMessage(msg string) string {
 	serviceNameRe := regexp.MustCompile(`(?i)\b(Nova|Neutron|Cinder|Octavia|Glance|Keystone|Heat|OpenStack)\b`)
 	msg = serviceNameRe.ReplaceAllString(msg, "backend")
 
-	// Strip known error structure prefixes (e.g. "NeutronError: ...", "computeFault: ...").
-	structRe := regexp.MustCompile(`(?i)(NeutronError|computeFault|cinderException|itemNotFound)\s*[:]\s*`)
-	msg = structRe.ReplaceAllString(msg, "")
+	// Deduplicate consecutive "backend backend" from double replacements
+	// (e.g. "OpenStack Cinder" → "backend backend" → "backend").
+	dupBackendRe := regexp.MustCompile(`(?i)\bbackend(\s+backend)+\b`)
+	msg = dupBackendRe.ReplaceAllString(msg, "backend")
 
-	// Strip faultcode/faultstring/debuginfo XML-style fields that Octavia sometimes returns.
-	faultRe := regexp.MustCompile(`(?i)(faultcode|faultstring|debuginfo)\s*[:=]\s*"?[^"]*"?[,;]?\s*`)
-	msg = faultRe.ReplaceAllString(msg, "")
+	// Strip known error structure prefixes, but keep itemNotFound as "Not found:"
+	// so users still know the error type is a 404-like lookup failure.
+	structRe := regexp.MustCompile(`(?i)(NeutronError|computeFault|cinderException)\s*[:]\s*`)
+	msg = structRe.ReplaceAllString(msg, "")
+	itemNotFoundRe := regexp.MustCompile(`(?i)itemNotFound\s*[:]\s*`)
+	msg = itemNotFoundRe.ReplaceAllString(msg, "Not found: ")
+
+	// Extract faultstring values (preserve the diagnostic content, strip the key).
+	// "faultstring: "Connection refused" please retry" → "Connection refused please retry"
+	faultstringRe := regexp.MustCompile(`(?i)faultstring\s*[:=]\s*"([^"]*)"[,;]?\s*`)
+	msg = faultstringRe.ReplaceAllString(msg, "$1 ")
+
+	// Strip faultcode and debuginfo entirely (these are internal-only).
+	faultMetaRe := regexp.MustCompile(`(?i)(faultcode|debuginfo)\s*[:=]\s*"?[^"]*"?[,;]?\s*`)
+	msg = faultMetaRe.ReplaceAllString(msg, "")
 
 	// Collapse multiple spaces and trim.
 	spaceRe := regexp.MustCompile(`\s{2,}`)
 	msg = strings.TrimSpace(spaceRe.ReplaceAllString(msg, " "))
 
 	return msg
+}
+
+// flattenJSONError attempts to parse a JSON validation error object
+// (e.g. {"tags":["tags must contain one of: ALB or NLB"]}) into a
+// human-readable "field: message" string. Returns "" if not valid JSON.
+func flattenJSONError(msg string) string {
+	trimmed := strings.TrimSpace(msg)
+	var obj map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(trimmed), &obj); err != nil {
+		return ""
+	}
+
+	var parts []string
+	for field, val := range obj {
+		// Try as string array first (most common validation format)
+		var arr []string
+		if err := json.Unmarshal(val, &arr); err == nil {
+			for _, a := range arr {
+				parts = append(parts, fmt.Sprintf("%s: %s", field, a))
+			}
+			continue
+		}
+		// Try as plain string
+		var s string
+		if err := json.Unmarshal(val, &s); err == nil {
+			parts = append(parts, fmt.Sprintf("%s: %s", field, s))
+			continue
+		}
+		// Fallback: raw value
+		parts = append(parts, fmt.Sprintf("%s: %s", field, string(val)))
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	return strings.Join(parts, "; ")
 }
 
 // Client is the HTTP client for the Ace Cloud (npc-api) backend.
@@ -73,12 +130,26 @@ type Client struct {
 // Some endpoints (e.g. CaaS) return "messages" (plural) instead of "message".
 type APIResponse struct {
 	Error       bool            `json:"error"`
+	Success     *bool           `json:"success,omitempty"` // Registry API uses {success: bool} instead of {error: bool}
 	RawMessage  json.RawMessage `json:"message"`
 	RawMessages json.RawMessage `json:"messages"`
 	Message     string          `json:"-"`
 	RawStatus   json.RawMessage `json:"status,omitempty"`
 	Status      int             `json:"-"`
 	Data        json.RawMessage `json:"data"`
+	RawBody     json.RawMessage `json:"-"` // Full response body for non-standard envelopes (bare arrays, etc.)
+}
+
+// IsError returns true if the API response indicates an error.
+// Handles both {error: true} and {success: false} envelopes.
+func (r *APIResponse) IsError() bool {
+	if r.Error {
+		return true
+	}
+	if r.Success != nil && !*r.Success {
+		return true
+	}
+	return false
 }
 
 // parseStatus extracts an integer status code from the raw status field.
@@ -271,24 +342,33 @@ func (c *Client) DoRequest(ctx context.Context, method, path string, body interf
 		}
 
 		var apiResp APIResponse
+		apiResp.RawBody = respBody // Store full body for non-standard envelopes
 		if err := json.Unmarshal(respBody, &apiResp); err != nil {
-			// If we can't parse the response and status is retryable, retry.
-			if retryableStatus(resp.StatusCode) {
-				lastErr = fmt.Errorf("failed to parse API response (status %d)", resp.StatusCode)
-				continue
+			// Some endpoints return bare arrays instead of {error, data} envelope.
+			// If it looks like valid JSON, treat the raw body as the data.
+			trimmed := bytes.TrimSpace(respBody)
+			if len(trimmed) > 0 && (trimmed[0] == '[' || trimmed[0] == '{') && resp.StatusCode >= 200 && resp.StatusCode < 300 {
+				apiResp.Data = trimmed
+				// fall through to success path
+			} else {
+				// If we can't parse the response and status is retryable, retry.
+				if retryableStatus(resp.StatusCode) {
+					lastErr = fmt.Errorf("failed to parse API response (status %d)", resp.StatusCode)
+					continue
+				}
+				return nil, fmt.Errorf("failed to parse API response (status %d)", resp.StatusCode)
 			}
-			return nil, fmt.Errorf("failed to parse API response (status %d)", resp.StatusCode)
 		}
 		apiResp.parseStatus()
 		apiResp.parseMessage()
 
 		// If the API returned an error with a retryable status code, retry.
-		if apiResp.Error && retryableStatus(resp.StatusCode) {
+		if apiResp.IsError() && retryableStatus(resp.StatusCode) {
 			lastErr = fmt.Errorf("API error (status %d): %s", resp.StatusCode, sanitizeErrorMessage(apiResp.Message))
 			continue
 		}
 
-		if apiResp.Error {
+		if apiResp.IsError() {
 			return &apiResp, fmt.Errorf("API error: %s", sanitizeErrorMessage(apiResp.Message))
 		}
 

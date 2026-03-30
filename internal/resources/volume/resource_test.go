@@ -387,24 +387,10 @@ func TestMapAPIResponseToState_WithMetadata(t *testing.T) {
 		t.Fatal("expected Metadata to be non-null")
 	}
 	elements := model.Metadata.Elements()
-	if len(elements) != 3 {
-		t.Fatalf("expected 3 metadata entries, got %d", len(elements))
-	}
-
-	// Extract values for verification.
-	metadata := make(map[string]string)
-	diags.Append(model.Metadata.ElementsAs(ctx, &metadata, false)...)
-	if diags.HasError() {
-		t.Fatalf("failed to extract metadata: %v", diags.Errors())
-	}
-	if metadata["env"] != "production" {
-		t.Errorf("expected metadata env=production, got %s", metadata["env"])
-	}
-	if metadata["team"] != "platform" {
-		t.Errorf("expected metadata team=platform, got %s", metadata["team"])
-	}
-	if metadata["project"] != "infra" {
-		t.Errorf("expected metadata project=infra, got %s", metadata["project"])
+	// When model has empty metadata {}, the empty map is preserved — API data is not injected.
+	// This prevents "inconsistent result after apply" when user clears metadata to {}.
+	if len(elements) != 0 {
+		t.Fatalf("expected 0 metadata entries (empty map preserved), got %d", len(elements))
 	}
 }
 
@@ -454,8 +440,9 @@ func TestMapAPIResponseToState_WithAllSourceFields(t *testing.T) {
 	if model.ImageRef.ValueString() != "44444444-4444-4444-4444-444444444444" {
 		t.Errorf("expected ImageRef '44444444-4444-4444-4444-444444444444', got %s", model.ImageRef.ValueString())
 	}
-	if model.Description.ValueString() != "Volume with all source fields" {
-		t.Errorf("expected Description 'Volume with all source fields', got %s", model.Description.ValueString())
+	// When model has Description="" (user explicitly cleared), preserve empty — don't overwrite from API.
+	if model.Description.ValueString() != "" {
+		t.Errorf("expected Description '' (empty, preserved), got %s", model.Description.ValueString())
 	}
 	if model.AvailabilityZone.ValueString() != "mumbai-1a" {
 		t.Errorf("expected AvailabilityZone 'mumbai-1a', got %s", model.AvailabilityZone.ValueString())
@@ -780,8 +767,10 @@ func TestMapAPIResponseToState_AllFieldsPopulated(t *testing.T) {
 	if model.AvailabilityZone.ValueString() != "mumbai-1a" {
 		t.Errorf("expected AvailabilityZone mumbai-1a, got %s", model.AvailabilityZone.ValueString())
 	}
-	if model.Description.ValueString() != "A complete volume" {
-		t.Errorf("expected Description 'A complete volume', got %s", model.Description.ValueString())
+	// When model has Description=null (user didn't set), API value is NOT injected into state.
+	// This prevents "inconsistent result" errors. User's null is preserved.
+	if !model.Description.IsNull() {
+		t.Errorf("expected Description null (user didn't set), got %s", model.Description.ValueString())
 	}
 	if model.Status.ValueString() != "available" {
 		t.Errorf("expected Status available, got %s", model.Status.ValueString())

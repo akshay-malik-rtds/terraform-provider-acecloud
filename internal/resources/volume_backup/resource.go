@@ -307,7 +307,17 @@ func (r *volumeBackupResource) Delete(ctx context.Context, req resource.DeleteRe
 		Values: []string{state.ID.ValueString()},
 	}
 
-	_, err := r.client.Delete(ctx, deletePath, body)
+	// Backup deletion can fail when the backup is being restored or is in
+	// a transitional state.
+	// npc-api returns: "Backup status must be available or error"
+	// npc-api returns: "Incremental backups exist for this backup"
+	err := wait.RetryOnConflict(ctx, wait.RetryOnConflictOpts{
+		Operation: func(ctx context.Context) error {
+			_, err := r.client.Delete(ctx, deletePath, body)
+			return err
+		},
+		RetryableErrors: []string{"status must be available", "Backup is already being created"},
+	})
 	if err != nil {
 		resp.Diagnostics.AddError("Failed to delete volume backup", err.Error())
 		return

@@ -174,9 +174,9 @@ func TestBuildCreateRequest_MinimalFields(t *testing.T) {
 	if body.Name != "minimal-cluster" {
 		t.Errorf("expected name minimal-cluster, got %s", body.Name)
 	}
-	// SnapshotBackup is empty when plan value is null (optional field not set).
-	if body.SnapshotBackup != "" {
-		t.Errorf("expected empty snapshotBackup, got %s", body.SnapshotBackup)
+	// SnapshotBackup defaults to "No" when plan value is null (required by API DTO).
+	if body.SnapshotBackup != "No" {
+		t.Errorf("expected snapshotBackup 'No' (default), got %s", body.SnapshotBackup)
 	}
 	// New required fields always have defaults.
 	if body.SnapshotEnabled != "No" {
@@ -570,8 +570,8 @@ func TestBuildCreateRequest_SnapshotBackupNull(t *testing.T) {
 
 	body := buildCreateRequest(plan)
 
-	if body.SnapshotBackup != "" {
-		t.Errorf("expected empty snapshotBackup when null, got %q", body.SnapshotBackup)
+	if body.SnapshotBackup != "No" {
+		t.Errorf("expected snapshotBackup 'No' (default when null), got %q", body.SnapshotBackup)
 	}
 	if body.SnapshotEnabled != "No" {
 		t.Errorf("expected snapshotEnabled 'No' when snapshotBackup is null, got %q", body.SnapshotEnabled)

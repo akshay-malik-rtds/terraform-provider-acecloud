@@ -157,12 +157,27 @@ func buildScaleRequest(plan *k8sNodeGroupModel, state *k8sNodeGroupModel) nodeGr
 
 func mapAPIResponseToState(ctx context.Context, model *k8sNodeGroupModel, apiResp *nodeGroupAPIResponse) {
 	model.ID = types.StringValue(apiResp.ID)
-	model.ClusterID = types.StringValue(apiResp.ClusterID)
-	model.SecGroupID = types.StringValue(apiResp.SecGroupID)
-	model.Name = types.StringValue(apiResp.Name)
-	model.Quantity = types.Int64Value(apiResp.Quantity)
-	model.FlavorID = types.StringValue(apiResp.FlavorID)
-	model.Volume = types.StringValue(apiResp.Volume)
+	// Only update fields that the API actually returns.
+	// The K8s node group list response is stripped-down — many fields are empty.
+	// Preserve plan/state values for fields the API doesn't return.
+	if apiResp.ClusterID != "" {
+		model.ClusterID = types.StringValue(apiResp.ClusterID)
+	}
+	if apiResp.SecGroupID != "" {
+		model.SecGroupID = types.StringValue(apiResp.SecGroupID)
+	}
+	if apiResp.Name != "" {
+		model.Name = types.StringValue(apiResp.Name)
+	}
+	if apiResp.Quantity > 0 {
+		model.Quantity = types.Int64Value(apiResp.Quantity)
+	}
+	if apiResp.FlavorID != "" {
+		model.FlavorID = types.StringValue(apiResp.FlavorID)
+	}
+	if apiResp.Volume != "" {
+		model.Volume = types.StringValue(apiResp.Volume)
+	}
 
 	if len(apiResp.Labels) > 0 {
 		labelsMap, diags := types.MapValueFrom(ctx, types.StringType, apiResp.Labels)
@@ -229,31 +244,54 @@ func parseNodeGroupListFromData(data json.RawMessage) ([]json.RawMessage, error)
 	return items, nil
 }
 
-func (r *k8sNodeGroupResource) findNodeGroupByID(ctx context.Context, clusterID, nodeGroupID string) (*nodeGroupAPIResponse, error) {
+func (r *k8sNodeGroupResource) listNodeGroups(ctx context.Context, clusterID string) ([]nodeGroupAPIResponse, error) {
 	params := map[string]string{
 		"clusterId": clusterID,
-		"limit":     "100",
 	}
 	apiResp, err := r.client.Get(ctx, listPath, params)
 	if err != nil {
 		return nil, err
 	}
 
-	items, err := parseNodeGroupListFromData(apiResp.Data)
+	// Node group list endpoint returns a bare array (not wrapped in {data:...}).
+	// Try apiResp.Data first, then fall back to RawBody.
+	rawData := apiResp.Data
+	if len(rawData) == 0 {
+		rawData = apiResp.RawBody
+	}
+
+	var nodeGroups []nodeGroupAPIResponse
+	if err := json.Unmarshal(rawData, &nodeGroups); err != nil {
+		return nil, fmt.Errorf("failed to parse node group list: %w", err)
+	}
+	return nodeGroups, nil
+}
+
+func (r *k8sNodeGroupResource) findNodeGroupByID(ctx context.Context, clusterID, nodeGroupID string) (*nodeGroupAPIResponse, error) {
+	nodeGroups, err := r.listNodeGroups(ctx, clusterID)
 	if err != nil {
 		return nil, err
 	}
-
-	for _, raw := range items {
-		ng, err := parseNodeGroupFromRaw(raw)
-		if err != nil {
-			continue
-		}
+	for i, ng := range nodeGroups {
 		if ng.ID == nodeGroupID {
-			return ng, nil
+			return &nodeGroups[i], nil
 		}
 	}
 	return nil, fmt.Errorf("node group %s not found in cluster %s", nodeGroupID, clusterID)
+}
+
+func (r *k8sNodeGroupResource) findNodeGroupByName(ctx context.Context, clusterID, name string) (*nodeGroupAPIResponse, error) {
+	nodeGroups, err := r.listNodeGroups(ctx, clusterID)
+	if err != nil {
+		return nil, err
+	}
+	for i, ng := range nodeGroups {
+		// Match by ID (which equals name in K8s node groups)
+		if ng.ID == name || ng.Name == name {
+			return &nodeGroups[i], nil
+		}
+	}
+	return nil, fmt.Errorf("node group %s not found in cluster %s", name, clusterID)
 }
 
 func (r *k8sNodeGroupResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
@@ -277,28 +315,11 @@ func (r *k8sNodeGroupResource) Create(ctx context.Context, req resource.CreateRe
 
 	item, err := wait.PollForResource(ctx, wait.PollForResourceOpts{
 		List: func(ctx context.Context) (interface{}, error) {
-			params := map[string]string{
-				"clusterId": clusterID,
-				"limit":     "100",
+			ng, findErr := r.findNodeGroupByName(ctx, clusterID, targetName)
+			if findErr != nil {
+				return nil, nil // keep polling
 			}
-			listResp, err := r.client.Get(ctx, listPath, params)
-			if err != nil {
-				return nil, err
-			}
-			items, err := parseNodeGroupListFromData(listResp.Data)
-			if err != nil {
-				return nil, err
-			}
-			for _, raw := range items {
-				ng, err := parseNodeGroupFromRaw(raw)
-				if err != nil {
-					continue
-				}
-				if ng.Name == targetName {
-					return ng, nil
-				}
-			}
-			return nil, nil // not found yet
+			return ng, nil
 		},
 	})
 	if err != nil {
@@ -349,32 +370,8 @@ func (r *k8sNodeGroupResource) Update(ctx context.Context, req resource.UpdateRe
 			return
 		}
 
-		// Poll until state stabilizes after scale.
-		clusterID := state.ClusterID.ValueString()
-		nodeGroupID := state.ID.ValueString()
-
-		result, err := wait.WaitForStatus(ctx, wait.WaitForStatusOpts{
-			Refresh: func(ctx context.Context) (*wait.StatusResult, error) {
-				ng, err := r.findNodeGroupByID(ctx, clusterID, nodeGroupID)
-				if err != nil {
-					return nil, err
-				}
-				return &wait.StatusResult{Status: ng.State, Data: ng}, nil
-			},
-			TargetStatus: []string{"ACTIVE", "RUNNING"},
-			ErrorStatus:  []string{"ERROR", "FAILED"},
-		})
-		if err != nil {
-			resp.Diagnostics.AddError("Failed to scale Kubernetes node group",
-				fmt.Sprintf("Timed out waiting for node group to stabilize: %s", err))
-			return
-		}
-		if result != nil && result.Data != nil {
-			found := result.Data.(*nodeGroupAPIResponse)
-			mapAPIResponseToState(ctx, &plan, found)
-			resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
-			return
-		}
+		// Scale is async — the K8s node group list API doesn't return state,
+		// so we can't poll for ACTIVE. Accept the scale request and update quantity in state.
 	}
 
 	// No changes needed beyond quantity — just refresh state.
@@ -396,10 +393,13 @@ func (r *k8sNodeGroupResource) Delete(ctx context.Context, req resource.DeleteRe
 	}
 
 	deletePutPath := fmt.Sprintf("%s/%s", deletePath, state.ID.ValueString())
+	deleteBody := map[string]string{
+		"clusterId": state.ClusterID.ValueString(),
+	}
 
 	err := wait.RetryOnConflict(ctx, wait.RetryOnConflictOpts{
 		Operation: func(ctx context.Context) error {
-			_, err := r.client.Delete(ctx, deletePutPath, nil)
+			_, err := r.client.Delete(ctx, deletePutPath, deleteBody)
 			return err
 		},
 	})

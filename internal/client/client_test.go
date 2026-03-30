@@ -499,9 +499,9 @@ func TestSanitizeErrorMessage_ErrorStructPrefixes(t *testing.T) {
 			want:  "Volume size exceeds limit",
 		},
 		{
-			name:  "itemNotFound prefix",
+			name:  "itemNotFound prefix preserved as Not found",
 			input: "itemNotFound: Resource 123 does not exist",
-			want:  "Resource 123 does not exist",
+			want:  "Not found: Resource 123 does not exist",
 		},
 	}
 
@@ -527,9 +527,9 @@ func TestSanitizeErrorMessage_FaultFields(t *testing.T) {
 			want:  "Error occurred in processing",
 		},
 		{
-			name:  "faultstring field",
+			name:  "faultstring field preserves value",
 			input: `faultstring: "Connection refused" please retry`,
-			want:  "please retry",
+			want:  "Connection refused please retry",
 		},
 		{
 			name:  "debuginfo field",
@@ -602,14 +602,14 @@ func TestSanitizeErrorMessage_ComplexRealWorld(t *testing.T) {
 			want:  "Port abc-123 not found",
 		},
 		{
-			name:  "Nova instance error with fault fields",
+			name:  "Nova instance error with fault fields preserves faultstring",
 			input: `Nova error: Instance failed faultcode: "Server" faultstring: "No valid host" debuginfo: "Traceback..."`,
-			want:  "backend error: Instance failed",
+			want:  "backend error: Instance failed No valid host",
 		},
 		{
-			name:  "Cinder volume with OpenStack reference",
+			name:  "Cinder volume with OpenStack reference deduplicates backend",
 			input: "cinderException: OpenStack Cinder volume limit exceeded for project",
-			want:  "backend backend volume limit exceeded for project",
+			want:  "backend volume limit exceeded for project",
 		},
 	}
 
@@ -620,6 +620,92 @@ func TestSanitizeErrorMessage_ComplexRealWorld(t *testing.T) {
 				t.Errorf("sanitizeErrorMessage(%q) = %q, want %q", tc.input, got, tc.want)
 			}
 		})
+	}
+}
+
+func TestSanitizeErrorMessage_JSONValidation(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{
+			name:  "Single field array",
+			input: `{"tags":["tags must contain one of: ALB or NLB"]}`,
+			want:  "tags: tags must contain one of: ALB or NLB",
+		},
+		{
+			name:  "UUID validation",
+			input: `{"floating_network_id":["Floating network id must be a UUID"]}`,
+			want:  "floating_network_id: Floating network id must be a UUID",
+		},
+		{
+			name:  "Instance ID validation",
+			input: `{"instance_id":["Instance id must be a UUID"]}`,
+			want:  "instance_id: Instance id must be a UUID",
+		},
+		{
+			name:  "Not JSON passes through",
+			input: "Volume not found",
+			want:  "Volume not found",
+		},
+		{
+			name:  "Empty JSON object",
+			input: "{}",
+			want:  "{}",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := sanitizeErrorMessage(tc.input)
+			if got != tc.want {
+				t.Errorf("sanitizeErrorMessage(%q) = %q, want %q", tc.input, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestSanitizeErrorMessage_BackendDedup(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{
+			name:  "OpenStack Cinder becomes single backend",
+			input: "OpenStack Cinder error",
+			want:  "backend error",
+		},
+		{
+			name:  "OpenStack Nova Neutron triple",
+			input: "OpenStack Nova called Neutron",
+			want:  "backend called backend",
+		},
+		{
+			name:  "Single service name unchanged",
+			input: "Nova error occurred",
+			want:  "backend error occurred",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := sanitizeErrorMessage(tc.input)
+			if got != tc.want {
+				t.Errorf("sanitizeErrorMessage(%q) = %q, want %q", tc.input, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestSanitizeErrorMessage_MultipleFaultFields(t *testing.T) {
+	// faultstring value preserved, faultcode and debuginfo stripped
+	input := `Error faultcode: "Server" faultstring: "No valid host was found" debuginfo: "Traceback (most recent call last)..."`
+	want := "Error No valid host was found"
+	got := sanitizeErrorMessage(input)
+	if got != want {
+		t.Errorf("sanitizeErrorMessage(%q) = %q, want %q", input, got, want)
 	}
 }
 

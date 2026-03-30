@@ -102,7 +102,7 @@ func TestBuildCreateRequest_Full(t *testing.T) {
 	if body.Trigger.Type != "scheduled" {
 		t.Errorf("expected trigger.type scheduled, got %s", body.Trigger.Type)
 	}
-	if body.Trigger.TriggerSettings == nil {
+	if body.Trigger.TriggerSettings.Cron == "" {
 		t.Fatal("expected trigger_settings to be set")
 	}
 	if body.Trigger.TriggerSettings.Cron != "0 0 * * *" {
@@ -180,7 +180,7 @@ func TestBuildCreateRequest_Minimal(t *testing.T) {
 	if body.Trigger == nil {
 		t.Fatal("expected trigger to be set")
 	}
-	if body.Trigger.TriggerSettings != nil {
+	if body.Trigger.TriggerSettings.Cron != "" {
 		t.Error("expected trigger_settings to be nil for manual trigger with null cron")
 	}
 	if body.Filters != nil {
@@ -221,7 +221,7 @@ func TestCreateRequest_JSON(t *testing.T) {
 		DestNamespace: "prod",
 		Trigger: &triggerRequest{
 			Type: "scheduled",
-			TriggerSettings: &triggerSettingsRequest{
+			TriggerSettings: triggerSettingsRequest{
 				Cron: "0 0 * * *",
 			},
 		},
@@ -315,10 +315,10 @@ func TestCreateRequest_JSON_OmitsEmpty(t *testing.T) {
 		}
 	}
 
-	// trigger_settings should be omitted
+	// trigger_settings must always be present (npc-api DTO requires it)
 	trig := raw["trigger"].(map[string]interface{})
-	if _, ok := trig["trigger_settings"]; ok {
-		t.Error("expected trigger_settings to be omitted for manual trigger")
+	if _, ok := trig["trigger_settings"]; !ok {
+		t.Error("expected trigger_settings to always be present (required by API)")
 	}
 }
 
@@ -403,10 +403,8 @@ func TestMapAPIResponseToState(t *testing.T) {
 		t.Error("expected SrcRegistry to not be null")
 	}
 
-	// Verify dest_registry object is not null
-	if model.DestRegistry.IsNull() {
-		t.Error("expected DestRegistry to not be null")
-	}
+	// dest_registry stays as user configured (null if not set) — API value not injected
+	// No assertion needed — the model preserves user's config
 
 	// Verify trigger object is not null
 	if model.Trigger.IsNull() {
@@ -461,8 +459,8 @@ func TestMapAPIResponseToState_Empty(t *testing.T) {
 	if model.Filter.IsNull() != true {
 		t.Error("expected Filter to be null")
 	}
-	if !model.Speed.IsNull() {
-		t.Errorf("expected Speed to be null, got %d", model.Speed.ValueInt64())
+	if model.Speed.ValueInt64() != 0 {
+		t.Errorf("expected Speed to be 0 (API default), got %d", model.Speed.ValueInt64())
 	}
 	if model.CreatedAt.ValueString() != "" {
 		t.Errorf("expected empty CreatedAt, got %s", model.CreatedAt.ValueString())
@@ -654,8 +652,8 @@ func TestBuildTriggerRequest_Manual(t *testing.T) {
 	if result.Type != "manual" {
 		t.Errorf("expected Type 'manual', got %s", result.Type)
 	}
-	if result.TriggerSettings != nil {
-		t.Error("expected nil TriggerSettings for manual trigger with null cron")
+	if result.TriggerSettings.Cron != "" {
+		t.Error("expected empty TriggerSettings.Cron for manual trigger with null cron")
 	}
 }
 
@@ -673,8 +671,8 @@ func TestBuildTriggerRequest_Scheduled(t *testing.T) {
 	if result.Type != "scheduled" {
 		t.Errorf("expected Type 'scheduled', got %s", result.Type)
 	}
-	if result.TriggerSettings == nil {
-		t.Fatal("expected non-nil TriggerSettings for scheduled trigger")
+	if result.TriggerSettings.Cron == "" {
+		t.Fatal("expected non-empty TriggerSettings.Cron for scheduled trigger")
 	}
 	if result.TriggerSettings.Cron != "0 */6 * * *" {
 		t.Errorf("expected cron '0 */6 * * *', got %s", result.TriggerSettings.Cron)
@@ -975,8 +973,8 @@ func TestMapAPIResponseToState_SpeedPreservation(t *testing.T) {
 		Trigger: &triggerAPIResponse{Type: "manual"},
 	}
 	mapAPIResponseToState(ctx, model2, apiResp2)
-	if !model2.Speed.IsNull() {
-		t.Error("expected Speed to remain null when API returns 0 and model was null")
+	if model2.Speed.ValueInt64() != 0 {
+		t.Errorf("expected Speed to be 0 when API returns 0, got %d", model2.Speed.ValueInt64())
 	}
 
 	// Case 3: Speed is 0 but model.Speed was previously set

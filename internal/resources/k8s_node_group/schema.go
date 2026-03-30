@@ -75,6 +75,9 @@ func k8sNodeGroupSchema() schema.Schema {
 			"quantity": schema.Int64Attribute{
 				Description: "Number of nodes in the node group. This is the only mutable field (triggers scale operation on update).",
 				Required:    true,
+				Validators: []validator.Int64{
+					int64validator.AtLeast(1),
+				},
 			},
 			"flavor_id": schema.StringAttribute{
 				Description: "UUID of the compute flavor for nodes in this group.",

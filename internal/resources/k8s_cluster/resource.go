@@ -82,6 +82,7 @@ type createK8sClusterRequest struct {
 	WorkerNodeName      string           `json:"workerNodeName"`
 	Quantity            int64            `json:"quantity"`
 	FlavorID            string           `json:"flavorId"`
+	FlavorName          string           `json:"flavorName,omitempty"`
 	Volume              int64            `json:"volume"`
 	SecGroupID          string           `json:"secGroupId,omitempty"`
 	ClusterType         string           `json:"cluster_type"`
@@ -150,7 +151,7 @@ func (r *k8sClusterResource) Create(ctx context.Context, req resource.CreateRequ
 
 	pollResult, pollErr := wait.PollForResource(ctx, wait.PollForResourceOpts{
 		List: func(ctx context.Context) (interface{}, error) {
-			listResp, err := r.client.Get(ctx, "/k8s/cluster-overview/clusters", nil)
+			listResp, err := r.client.Get(ctx, "/k8s/cluster-overview/clusters", map[string]string{"limit": "100"})
 			if err != nil {
 				return nil, err
 			}
@@ -168,13 +169,13 @@ func (r *k8sClusterResource) Create(ctx context.Context, req resource.CreateRequ
 			}
 			return nil, nil
 		},
-		Timeout:      10 * time.Minute,
+		Timeout:      40 * time.Minute,
 		PollInterval: 30 * time.Second,
 	})
 
 	if pollErr != nil {
 		resp.Diagnostics.AddError(
-			"Failed to find Kubernetes cluster after creation",
+			"Failed to create Kubernetes cluster",
 			fmt.Sprintf("Cluster '%s' was created but could not be found in the cluster list: %s", clusterName, pollErr),
 		)
 		return
@@ -202,7 +203,7 @@ func (r *k8sClusterResource) Create(ctx context.Context, req resource.CreateRequ
 		},
 		TargetStatus: []string{"active", "Active"},
 		ErrorStatus:  []string{"error", "Error", "failed"},
-		Timeout:      20 * time.Minute,
+		Timeout:      10 * time.Minute,
 		PollInterval: 15 * time.Second,
 	})
 
@@ -343,17 +344,24 @@ func buildCreateRequest(plan *k8sClusterResourceModel) *createK8sClusterRequest 
 		GPU:               false,
 	}
 
+	// Optional: flavor_name (required by RKE2 to configure worker machine configs).
+	if !plan.FlavorName.IsNull() && !plan.FlavorName.IsUnknown() {
+		body.FlavorName = plan.FlavorName.ValueString()
+	}
+
 	// Optional: sec_group_id.
 	if !plan.SecGroupID.IsNull() && !plan.SecGroupID.IsUnknown() {
 		body.SecGroupID = plan.SecGroupID.ValueString()
 	}
 
-	// Optional: snapshot_backup.
+	// snapshot_backup — required by DTO, default "No" if user doesn't set.
 	if !plan.SnapshotBackup.IsNull() && !plan.SnapshotBackup.IsUnknown() {
 		body.SnapshotBackup = plan.SnapshotBackup.ValueString()
 		if plan.SnapshotBackup.ValueString() == "Yes" {
 			body.SnapshotEnabled = "Yes"
 		}
+	} else {
+		body.SnapshotBackup = "No"
 	}
 
 	// Optional: autoscale.

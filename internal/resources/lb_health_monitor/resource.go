@@ -167,19 +167,19 @@ func mapAPIResponseToState(model *lbHealthMonitorResourceModel, apiResp *hmAPIRe
 
 	if apiResp.URLPath != "" {
 		model.URLPath = types.StringValue(apiResp.URLPath)
-	} else if model.URLPath.IsNull() {
+	} else if model.URLPath.IsNull() || model.URLPath.IsUnknown() {
 		model.URLPath = types.StringNull()
 	}
 
 	if apiResp.ExpectedCodes != "" {
 		model.ExpectedCodes = types.StringValue(apiResp.ExpectedCodes)
-	} else if model.ExpectedCodes.IsNull() {
+	} else if model.ExpectedCodes.IsNull() || model.ExpectedCodes.IsUnknown() {
 		model.ExpectedCodes = types.StringNull()
 	}
 
 	if apiResp.HTTPMethod != "" {
 		model.HTTPMethod = types.StringValue(apiResp.HTTPMethod)
-	} else if model.HTTPMethod.IsNull() {
+	} else if model.HTTPMethod.IsNull() || model.HTTPMethod.IsUnknown() {
 		model.HTTPMethod = types.StringNull()
 	}
 
@@ -228,7 +228,7 @@ func (r *lbHealthMonitorResource) Create(ctx context.Context, req resource.Creat
 		ErrorStatus:  []string{"ERROR"},
 	})
 	if err != nil {
-		resp.Diagnostics.AddError("Timeout waiting for pool to become active", err.Error())
+		resp.Diagnostics.AddError("Failed to create health monitor", err.Error())
 		return
 	}
 

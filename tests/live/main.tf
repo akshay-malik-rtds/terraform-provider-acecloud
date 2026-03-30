@@ -55,7 +55,7 @@ variable "region" {
 }
 
 variable "project_id" {
-  description = "OpenStack project UUID"
+  description = "Cloud project UUID"
   type        = string
   default     = ""
 }
@@ -329,7 +329,7 @@ resource "acecloud_instance" "test" {
     environment = "test"
   }
 
-  # NOTE: tags removed — dev4 OpenStack version doesn't support tags on server create
+  # NOTE: tags removed — dev4 backend version doesn't support tags on server create
 }
 
 # ═══════════════════════════════════════════════════════════════
@@ -354,6 +354,9 @@ resource "acecloud_floating_ip_association" "test" {
 
   floating_ip_address = acecloud_floating_ip.test[0].floating_ip_address
   instance_id         = acecloud_instance.test[0].id
+
+  # Router interface must exist so the VPC has a route to the external network
+  depends_on = [acecloud_router_interface.test]
 }
 
 # ═══════════════════════════════════════════════════════════════
@@ -361,18 +364,20 @@ resource "acecloud_floating_ip_association" "test" {
 # ═══════════════════════════════════════════════════════════════
 
 resource "acecloud_router" "test" {
-  name           = "tf-live-test-router"
-  admin_state_up = true
+  name                       = "tf-live-test-router"
+  admin_state_up             = true
+  external_gateway_network_id = var.external_network_id != "" ? var.external_network_id : null
 }
 
 # ═══════════════════════════════════════════════════════════════
 # Phase 10: Router Interface
 # ═══════════════════════════════════════════════════════════════
-# Uses the second subnet created above (not the inline VPC subnet).
+# Uses the VPC's inline subnet (where the instance lives) so
+# floating IP association has a route to the external network.
 
 resource "acecloud_router_interface" "test" {
   router_id = acecloud_router.test.id
-  subnet_id = acecloud_subnet.test.id
+  subnet_id = acecloud_vpc.test.subnet_id
 }
 
 # ═══════════════════════════════════════════════════════════════

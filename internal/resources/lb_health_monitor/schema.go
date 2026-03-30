@@ -101,16 +101,19 @@ func lbHealthMonitorSchema() schema.Schema {
 				},
 			},
 			"url_path": schema.StringAttribute{
-				Description: "URL path for HTTP/HTTPS health checks (e.g. /health).",
+				Description: "URL path for HTTP/HTTPS health checks (e.g. /health). Defaults to / for HTTP/HTTPS monitors.",
 				Optional:    true,
+				Computed:    true,
 			},
 			"expected_codes": schema.StringAttribute{
-				Description: "Expected HTTP response codes for HTTP/HTTPS checks (e.g. 200, 200-299).",
+				Description: "Expected HTTP response codes for HTTP/HTTPS checks (e.g. 200, 200-299). Defaults to 200.",
 				Optional:    true,
+				Computed:    true,
 			},
 			"http_method": schema.StringAttribute{
-				Description: "HTTP method for HTTP/HTTPS checks (GET, POST, etc.).",
+				Description: "HTTP method for HTTP/HTTPS checks (GET, POST, etc.). Defaults to GET.",
 				Optional:    true,
+				Computed:    true,
 				Validators: []validator.String{
 					stringvalidator.OneOf("GET", "POST", "PUT", "DELETE", "HEAD", "OPTIONS", "PATCH", "CONNECT", "TRACE"),
 				},

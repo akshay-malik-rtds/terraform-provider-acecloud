@@ -206,7 +206,7 @@ func (r *lbPoolResource) Create(ctx context.Context, req resource.CreateRequest,
 		},
 	})
 	if err != nil {
-		resp.Diagnostics.AddError("Pool not found after creation",
+		resp.Diagnostics.AddError("Failed to create LB pool",
 			fmt.Sprintf("Pool %q was not found after polling: %s", targetName, err))
 		return
 	}

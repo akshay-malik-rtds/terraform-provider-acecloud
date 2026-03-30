@@ -6,6 +6,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework-validators/int64validator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
@@ -119,24 +120,33 @@ func autoScalingDeploymentSchema() schema.Schema {
 				},
 			},
 			"desired_capacity": schema.Int64Attribute{
-				Description: "Desired number of instances (1-30).",
+				Description: "Desired number of instances (1-30). Changing this forces recreation.",
 				Required:    true,
 				Validators: []validator.Int64{
 					int64validator.Between(1, 30),
+				},
+				PlanModifiers: []planmodifier.Int64{
+					int64planmodifier.RequiresReplace(),
 				},
 			},
 			"max_capacity": schema.Int64Attribute{
-				Description: "Maximum number of instances (1-30).",
+				Description: "Maximum number of instances (1-30). Changing this forces recreation.",
 				Required:    true,
 				Validators: []validator.Int64{
 					int64validator.Between(1, 30),
 				},
+				PlanModifiers: []planmodifier.Int64{
+					int64planmodifier.RequiresReplace(),
+				},
 			},
 			"nodes_scale_count": schema.Int64Attribute{
-				Description: "Number of nodes to add/remove per scale event (1-30).",
+				Description: "Number of nodes to add/remove per scale event (1-30). Changing this forces recreation.",
 				Required:    true,
 				Validators: []validator.Int64{
 					int64validator.Between(1, 30),
+				},
+				PlanModifiers: []planmodifier.Int64{
+					int64planmodifier.RequiresReplace(),
 				},
 			},
 			"scaling_parameter": schema.StringAttribute{
@@ -150,24 +160,33 @@ func autoScalingDeploymentSchema() schema.Schema {
 				},
 			},
 			"min_threshold": schema.Int64Attribute{
-				Description: "Minimum threshold percentage for scale-in (30-90).",
+				Description: "Minimum threshold percentage for scale-in (30-90). Changing this forces recreation.",
 				Required:    true,
 				Validators: []validator.Int64{
 					int64validator.Between(30, 90),
 				},
+				PlanModifiers: []planmodifier.Int64{
+					int64planmodifier.RequiresReplace(),
+				},
 			},
 			"max_threshold": schema.Int64Attribute{
-				Description: "Maximum threshold percentage for scale-out (40-95).",
+				Description: "Maximum threshold percentage for scale-out (40-95). Changing this forces recreation.",
 				Required:    true,
 				Validators: []validator.Int64{
 					int64validator.Between(40, 95),
 				},
+				PlanModifiers: []planmodifier.Int64{
+					int64planmodifier.RequiresReplace(),
+				},
 			},
 			"cool_down_time": schema.Int64Attribute{
-				Description: "Cool-down period in seconds between scale events (60-3600).",
+				Description: "Cool-down period in seconds between scale events (60-3600). Changing this forces recreation.",
 				Required:    true,
 				Validators: []validator.Int64{
 					int64validator.Between(60, 3600),
+				},
+				PlanModifiers: []planmodifier.Int64{
+					int64planmodifier.RequiresReplace(),
 				},
 			},
 			"user_email": schema.ListAttribute{

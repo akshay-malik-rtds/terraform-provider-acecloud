@@ -241,7 +241,7 @@ resource "acecloud_k8s_node_group" "error_bad_cluster" {
 
 # ─── Test E14: Registry Project — Duplicate name ─────────────
 # Expected: "Failed to create registry project" with sanitized message
-# Note: Uses obviously invalid name to trigger 400 from Harbor backend
+# Note: Uses obviously invalid name to trigger 400 from registry backend
 resource "acecloud_registry_project" "error_bad_name" {
   count = var.run_error_tests ? 1 : 0
 
