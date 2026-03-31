@@ -91,9 +91,9 @@ func registryBlockSchema(description string, required bool) schema.SingleNestedB
 				Optional:    !required,
 			},
 			"type": schema.StringAttribute{
-				Description: "Registry type (e.g. docker-hub, aws-ecr).",
-				Required:    required,
-				Optional:    !required,
+				Description: "Registry type (e.g. docker-hub, aws-ecr). Defaults to the AceCloud registry type.",
+				Optional:    true,
+				Computed:    true,
 			},
 		},
 	}

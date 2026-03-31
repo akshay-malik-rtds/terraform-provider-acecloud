@@ -14,11 +14,20 @@ import (
 	"time"
 )
 
-// sanitizeErrorMessage strips internal backend details (OpenStack service names,
-// error structures, stack traces, UUIDs) from API error messages so that
-// Terraform output never leaks implementation details to end users.
-// It preserves diagnostic content (fault values, not-found context) while
-// removing only implementation-specific labels.
+// Pre-compiled regexes for sanitizeErrorMessage — compiled once at package init.
+var (
+	internalIDRe  = regexp.MustCompile(`(?i)(request[_-]id|transaction[_-]id|x-openstack-request-id)\s*[:=]\s*\S+\s*`)
+	serviceNameRe = regexp.MustCompile(`(?i)\b(Nova|Neutron|Cinder|Octavia|Glance|Keystone|Heat|OpenStack)\b`)
+	dupBackendRe  = regexp.MustCompile(`(?i)\bbackend(\s+backend)+\b`)
+	structRe      = regexp.MustCompile(`(?i)(NeutronError|computeFault|cinderException)\s*[:]\s*`)
+	itemNotFoundRe = regexp.MustCompile(`(?i)itemNotFound\s*[:]\s*`)
+	faultstringRe = regexp.MustCompile(`(?i)faultstring\s*[:=]\s*"([^"]*)"[,;]?\s*`)
+	faultMetaRe   = regexp.MustCompile(`(?i)(faultcode|debuginfo)\s*[:=]\s*"?[^"]*"?[,;]?\s*`)
+	spaceRe       = regexp.MustCompile(`\s{2,}`)
+)
+
+// sanitizeErrorMessage strips internal backend details from API error messages
+// so that Terraform output never leaks implementation details to end users.
 func sanitizeErrorMessage(msg string) string {
 	if msg == "" {
 		return msg
@@ -43,38 +52,13 @@ func sanitizeErrorMessage(msg string) string {
 		}
 	}
 
-	// Strip internal IDs BEFORE service name replacement so that
-	// "x-openstack-request-id" gets matched as a whole token first.
-	internalIDRe := regexp.MustCompile(`(?i)(request[_-]id|transaction[_-]id|x-openstack-request-id)\s*[:=]\s*\S+\s*`)
 	msg = internalIDRe.ReplaceAllString(msg, "")
-
-	// Replace OpenStack service names with generic terms.
-	serviceNameRe := regexp.MustCompile(`(?i)\b(Nova|Neutron|Cinder|Octavia|Glance|Keystone|Heat|OpenStack)\b`)
 	msg = serviceNameRe.ReplaceAllString(msg, "backend")
-
-	// Deduplicate consecutive "backend backend" from double replacements
-	// (e.g. "OpenStack Cinder" → "backend backend" → "backend").
-	dupBackendRe := regexp.MustCompile(`(?i)\bbackend(\s+backend)+\b`)
 	msg = dupBackendRe.ReplaceAllString(msg, "backend")
-
-	// Strip known error structure prefixes, but keep itemNotFound as "Not found:"
-	// so users still know the error type is a 404-like lookup failure.
-	structRe := regexp.MustCompile(`(?i)(NeutronError|computeFault|cinderException)\s*[:]\s*`)
 	msg = structRe.ReplaceAllString(msg, "")
-	itemNotFoundRe := regexp.MustCompile(`(?i)itemNotFound\s*[:]\s*`)
 	msg = itemNotFoundRe.ReplaceAllString(msg, "Not found: ")
-
-	// Extract faultstring values (preserve the diagnostic content, strip the key).
-	// "faultstring: "Connection refused" please retry" → "Connection refused please retry"
-	faultstringRe := regexp.MustCompile(`(?i)faultstring\s*[:=]\s*"([^"]*)"[,;]?\s*`)
 	msg = faultstringRe.ReplaceAllString(msg, "$1 ")
-
-	// Strip faultcode and debuginfo entirely (these are internal-only).
-	faultMetaRe := regexp.MustCompile(`(?i)(faultcode|debuginfo)\s*[:=]\s*"?[^"]*"?[,;]?\s*`)
 	msg = faultMetaRe.ReplaceAllString(msg, "")
-
-	// Collapse multiple spaces and trim.
-	spaceRe := regexp.MustCompile(`\s{2,}`)
 	msg = strings.TrimSpace(spaceRe.ReplaceAllString(msg, " "))
 
 	return msg

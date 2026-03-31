@@ -93,7 +93,7 @@ func loadBalancerSchema() schema.Schema {
 				Computed:    true,
 			},
 			"provider_name": schema.StringAttribute{
-				Description: "Provider name (e.g. octavia).",
+				Description: "Load balancer backend provider name.",
 				Computed:    true,
 			},
 			"created_at": schema.StringAttribute{

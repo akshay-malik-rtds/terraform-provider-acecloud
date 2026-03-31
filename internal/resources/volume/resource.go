@@ -256,7 +256,7 @@ func (r *volumeResource) Delete(ctx context.Context, req resource.DeleteRequest,
 	}
 }
 
-// volumeTypeToBackend maps user-friendly volume type names to the backend OpenStack names.
+// volumeTypeToBackend maps user-friendly volume type names to the backend API names.
 // Users can specify either the short name or the full backend name.
 func volumeTypeToBackend(userType string) string {
 	mapping := map[string]string{

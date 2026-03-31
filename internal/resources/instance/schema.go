@@ -134,10 +134,10 @@ func (r *instanceResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 				},
 			},
 			"availability_zone": schema.StringAttribute{
-				Description: "Availability zone in which to launch the instance. Defaults to 'nova'.",
+				Description: "Availability zone for the instance. Uses the default zone if omitted.",
 				Optional:    true,
 				Computed:    true,
-				Default:     stringdefault.StaticString("nova"),
+				Default:     stringdefault.StaticString("nova"), // backend default AZ
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},

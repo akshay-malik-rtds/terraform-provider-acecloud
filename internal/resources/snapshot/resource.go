@@ -170,7 +170,7 @@ func (r *snapshotResource) Read(ctx context.Context, req resource.ReadRequest, r
 		return
 	}
 
-	// Read uses Cinder API: GET /os/cinder/{project_id}/snapshots/{id}
+	// Read uses storage API: GET /os/cinder/{project_id}/snapshots/{id}
 	readPath := fmt.Sprintf("/os/cinder/%s/snapshots/%s", r.client.ProjectID, state.ID.ValueString())
 	apiResp, err := r.client.Get(ctx, readPath, map[string]string{
 		"with": `["volume"]`,
@@ -203,7 +203,7 @@ func (r *snapshotResource) Update(ctx context.Context, req resource.UpdateReques
 		return
 	}
 
-	// Update uses Cinder API: PUT /os/cinder/{project_id}/snapshots/{id}
+	// Update uses storage API: PUT /os/cinder/{project_id}/snapshots/{id}
 	updateBody := snapshotUpdateRequest{
 		Snapshot: snapshotUpdateBody{
 			Name: plan.Name.ValueString(),
@@ -244,7 +244,7 @@ func (r *snapshotResource) Delete(ctx context.Context, req resource.DeleteReques
 		return
 	}
 
-	// Delete uses Cinder API: DELETE /os/cinder/{project_id}/snapshots
+	// Delete uses storage API: DELETE /os/cinder/{project_id}/snapshots
 	deletePath := fmt.Sprintf("/os/cinder/%s/snapshots", r.client.ProjectID)
 	body := snapshotDeleteRequest{
 		Key:    "id",

@@ -137,11 +137,15 @@ func buildRegistryRequest(ctx context.Context, obj types.Object) *registryReques
 	}
 	var reg registryModel
 	obj.As(ctx, &reg, basetypes.ObjectAsOptions{})
+	regType := reg.Type.ValueString()
+	if regType == "" {
+		regType = "harbor" // default AceCloud registry backend type
+	}
 	return &registryRequest{
 		ID:         reg.ID.ValueInt64(),
 		Name:       reg.Name.ValueString(),
 		URL:        reg.URL.ValueString(),
-		Type:       reg.Type.ValueString(),
+		Type:       regType,
 		UpdateTime: "2026-01-01T00:00:00.000Z",
 	}
 }

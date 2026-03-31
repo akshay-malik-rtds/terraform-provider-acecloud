@@ -99,7 +99,7 @@ func (r *routerInterfaceResource) Create(ctx context.Context, req resource.Creat
 		return
 	}
 
-	// OpenStack "add router interface" returns id=router_id, port_id=port_id.
+	// Backend "add router interface" returns id=router_id, port_id=port_id.
 	// Use port_id as the resource ID for correct delete operations.
 	if result.PortID != "" {
 		plan.ID = types.StringValue(result.PortID)

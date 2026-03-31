@@ -78,7 +78,7 @@ func (r *k8sClusterResource) Schema(_ context.Context, _ resource.SchemaRequest,
 				},
 			},
 			"kubernetes_version": schema.StringAttribute{
-				Description: "Kubernetes version (e.g. v1.32.6+rke2r1).",
+				Description: "Kubernetes version. Use the versions API to list available versions.",
 				Required:    true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
@@ -176,7 +176,7 @@ func (r *k8sClusterResource) Schema(_ context.Context, _ resource.SchemaRequest,
 				},
 			},
 			"flavor_name": schema.StringAttribute{
-				Description: "Name of the flavor for worker nodes (e.g. C4i.medium). Required for RKE2 provisioning.",
+				Description: "Name of the flavor for worker nodes (e.g. C4i.medium). Recommended for correct worker node configuration.",
 				Optional:    true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
@@ -202,10 +202,10 @@ func (r *k8sClusterResource) Schema(_ context.Context, _ resource.SchemaRequest,
 				},
 			},
 			"cluster_type": schema.StringAttribute{
-				Description: "Cluster type. Defaults to rke2.",
+				Description: "Cluster provisioning type. Uses the platform default if omitted.",
 				Optional:    true,
 				Computed:    true,
-				Default:     stringdefault.StaticString("rke2"),
+				Default:     stringdefault.StaticString("rke2"), // backend cluster type
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},

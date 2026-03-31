@@ -344,7 +344,7 @@ func buildCreateRequest(plan *k8sClusterResourceModel) *createK8sClusterRequest 
 		GPU:               false,
 	}
 
-	// Optional: flavor_name (required by RKE2 to configure worker machine configs).
+	// Optional: flavor_name (required by the cluster backend to configure worker machine configs).
 	if !plan.FlavorName.IsNull() && !plan.FlavorName.IsUnknown() {
 		body.FlavorName = plan.FlavorName.ValueString()
 	}

@@ -475,7 +475,7 @@ func buildCreateRequest(ctx context.Context, plan *instanceResourceModel) (*crea
 	return body, diags
 }
 
-// volumeTypeToBackend maps user-friendly volume type names to the backend OpenStack names.
+// volumeTypeToBackend maps user-friendly volume type names to the backend API names.
 // Consistent with the standalone volume resource mapping.
 func volumeTypeToBackend(userType string) string {
 	mapping := map[string]string{

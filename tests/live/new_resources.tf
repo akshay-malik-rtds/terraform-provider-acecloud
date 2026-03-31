@@ -312,7 +312,6 @@ resource "acecloud_registry_replication_rule" "test" {
     id   = 1
     name = "local-registry"
     url  = "https://registry.acecloud.ai"
-    type = "harbor"
   }
 
   trigger {

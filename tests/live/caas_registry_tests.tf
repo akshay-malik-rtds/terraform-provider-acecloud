@@ -265,7 +265,6 @@ resource "acecloud_registry_replication_rule" "cr9_event" {
     id   = 1
     name = "local-registry"
     url  = "https://registry.acecloud.ai"
-    type = "harbor"
   }
 
   trigger {
@@ -300,7 +299,6 @@ resource "acecloud_registry_replication_rule" "cr10_scheduled" {
     id   = 1
     name = "local-registry"
     url  = "https://registry.acecloud.ai"
-    type = "harbor"
   }
 
   trigger {
@@ -333,7 +331,6 @@ resource "acecloud_registry_replication_rule" "cr11_minimal" {
     id   = 1
     name = "local-registry"
     url  = "https://registry.acecloud.ai"
-    type = "harbor"
   }
 
   trigger {

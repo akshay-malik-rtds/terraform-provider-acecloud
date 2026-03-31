@@ -203,7 +203,7 @@ func (r *subnetResource) Read(ctx context.Context, req resource.ReadRequest, res
 	if v, ok := result["vpc_id"].(string); ok && v != "" {
 		state.VPCID = types.StringValue(v)
 	} else if v, ok := result["network_id"].(string); ok && v != "" {
-		// Fallback for direct OpenStack responses
+		// Fallback for alternative API response format
 		state.VPCID = types.StringValue(v)
 	}
 	if v, ok := result["ip_version"].(float64); ok {
