@@ -73,7 +73,7 @@ func k8sNodeGroupSchema() schema.Schema {
 				},
 			},
 			"quantity": schema.Int64Attribute{
-				Description: "Number of nodes in the node group. This is the only mutable field (triggers scale operation on update).",
+				Description: "Number of nodes in the node group. This is the only mutable field (triggers scale operation on update). When using autoscaling (min_node/max_node), use lifecycle { ignore_changes = [quantity] } to prevent Terraform from reverting autoscaler changes.",
 				Required:    true,
 				Validators: []validator.Int64{
 					int64validator.AtLeast(1),
