@@ -371,6 +371,18 @@ func (r *registryReplicationRuleResource) Create(ctx context.Context, req resour
 	plan.ID = types.StringValue(fmt.Sprintf("%d", fullResp.ID))
 
 	mapAPIResponseToState(ctx, &plan, fullResp)
+
+	// Ensure src_registry.type is resolved — if user omitted it, set default
+	if !plan.SrcRegistry.IsNull() && !plan.SrcRegistry.IsUnknown() {
+		var srcReg registryModel
+		plan.SrcRegistry.As(ctx, &srcReg, basetypes.ObjectAsOptions{})
+		if srcReg.Type.IsNull() || srcReg.Type.IsUnknown() {
+			srcReg.Type = types.StringValue("harbor") // default backend type
+			srcObj, _ := types.ObjectValueFrom(ctx, registryAttrTypes(), &srcReg)
+			plan.SrcRegistry = srcObj
+		}
+	}
+
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -395,6 +407,18 @@ func (r *registryReplicationRuleResource) Read(ctx context.Context, req resource
 	}
 
 	mapAPIResponseToState(ctx, &state, &ruleResp)
+
+	// Ensure src_registry.type is resolved
+	if !state.SrcRegistry.IsNull() && !state.SrcRegistry.IsUnknown() {
+		var srcReg registryModel
+		state.SrcRegistry.As(ctx, &srcReg, basetypes.ObjectAsOptions{})
+		if srcReg.Type.IsNull() || srcReg.Type.IsUnknown() {
+			srcReg.Type = types.StringValue("harbor") // default backend type
+			srcObj, _ := types.ObjectValueFrom(ctx, registryAttrTypes(), &srcReg)
+			state.SrcRegistry = srcObj
+		}
+	}
+
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
