@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/url"
 
 	"github.com/acecloud/terraform-provider-acecloud/internal/client"
 	"github.com/acecloud/terraform-provider-acecloud/internal/wait"
@@ -341,7 +342,7 @@ func (r *caasDeploymentResource) Create(ctx context.Context, req resource.Create
 	plan.ID = types.StringValue(plan.Name.ValueString())
 
 	// Wait for deployment to become Active
-	readPath := fmt.Sprintf("%s/%s", basePath, plan.Name.ValueString())
+	readPath := fmt.Sprintf("%s/%s", basePath, url.PathEscape(plan.Name.ValueString()))
 	result, waitErr := wait.WaitForStatus(ctx, wait.WaitForStatusOpts{
 		Refresh: func(ctx context.Context) (*wait.StatusResult, error) {
 			readResp, err := r.client.Get(ctx, readPath, nil)
@@ -382,7 +383,7 @@ func (r *caasDeploymentResource) Read(ctx context.Context, req resource.ReadRequ
 		return
 	}
 
-	path := fmt.Sprintf("%s/%s", basePath, state.Name.ValueString())
+	path := fmt.Sprintf("%s/%s", basePath, url.PathEscape(state.Name.ValueString()))
 	apiResp, err := r.client.Get(ctx, path, nil)
 	if err != nil {
 		resp.Diagnostics.AddError("Failed to read CaaS deployment", err.Error())
@@ -414,7 +415,7 @@ func (r *caasDeploymentResource) Update(ctx context.Context, req resource.Update
 
 	body := buildCreateRequest(ctx, &plan) // Update uses same body structure
 
-	path := fmt.Sprintf("%s/%s", basePath, state.Name.ValueString())
+	path := fmt.Sprintf("%s/%s", basePath, url.PathEscape(state.Name.ValueString()))
 	_, err := r.client.Put(ctx, path, body)
 	if err != nil {
 		resp.Diagnostics.AddError("Failed to update CaaS deployment", err.Error())
@@ -462,7 +463,7 @@ func (r *caasDeploymentResource) Delete(ctx context.Context, req resource.Delete
 		return
 	}
 
-	path := fmt.Sprintf("%s/%s", basePath, state.Name.ValueString())
+	path := fmt.Sprintf("%s/%s", basePath, url.PathEscape(state.Name.ValueString()))
 	_, err := r.client.Delete(ctx, path, nil)
 	if err != nil {
 		resp.Diagnostics.AddError("Failed to delete CaaS deployment", err.Error())

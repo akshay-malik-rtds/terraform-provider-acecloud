@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/url"
 
 	"github.com/acecloud/terraform-provider-acecloud/internal/client"
 	"github.com/acecloud/terraform-provider-acecloud/internal/wait"
@@ -210,7 +211,7 @@ func (r *caasSecretResource) Create(ctx context.Context, req resource.CreateRequ
 	plan.ID = types.StringValue(plan.Name.ValueString())
 
 	// Wait for secret to become Active
-	readPath := fmt.Sprintf("%s/%s", basePath, plan.Name.ValueString())
+	readPath := fmt.Sprintf("%s/%s", basePath, url.PathEscape(plan.Name.ValueString()))
 	result, waitErr := wait.WaitForStatus(ctx, wait.WaitForStatusOpts{
 		Refresh: func(ctx context.Context) (*wait.StatusResult, error) {
 			readResp, err := r.client.Get(ctx, readPath, nil)
@@ -250,7 +251,7 @@ func (r *caasSecretResource) Read(ctx context.Context, req resource.ReadRequest,
 		return
 	}
 
-	path := fmt.Sprintf("%s/%s", basePath, state.Name.ValueString())
+	path := fmt.Sprintf("%s/%s", basePath, url.PathEscape(state.Name.ValueString()))
 	apiResp, err := r.client.Get(ctx, path, nil)
 	if err != nil {
 		resp.Diagnostics.AddError("Failed to read CaaS secret", err.Error())
@@ -282,7 +283,7 @@ func (r *caasSecretResource) Update(ctx context.Context, req resource.UpdateRequ
 
 	body := buildUpdateRequest(ctx, &plan)
 
-	path := fmt.Sprintf("%s/%s", basePath, state.Name.ValueString())
+	path := fmt.Sprintf("%s/%s", basePath, url.PathEscape(state.Name.ValueString()))
 	_, err := r.client.Put(ctx, path, body)
 	if err != nil {
 		resp.Diagnostics.AddError("Failed to update CaaS secret", err.Error())

@@ -108,6 +108,20 @@ type Client struct {
 	HTTPClient *http.Client
 }
 
+// sensitiveFieldRe matches JSON fields that should be redacted in debug logs.
+var sensitiveFieldRe = regexp.MustCompile(`(?i)"(password|admin_password|accessToken|access_token|api_token|secret|credentials?)":\s*"[^"]*"`)
+
+// redactSensitiveFields masks sensitive values in JSON strings for safe logging.
+func redactSensitiveFields(s string) string {
+	return sensitiveFieldRe.ReplaceAllStringFunc(s, func(match string) string {
+		idx := strings.Index(match, ":")
+		if idx < 0 {
+			return match
+		}
+		return match[:idx+1] + ` "**REDACTED**"`
+	})
+}
+
 // APIResponse is the standard npc-api response envelope.
 // Note: Message can be a string or an object (for validation errors), so we
 // use json.RawMessage and extract a string afterwards.
@@ -215,7 +229,11 @@ func flattenValidationMessages(raw json.RawMessage) string {
 }
 
 // NewClient creates a new Ace Cloud API client.
+// Warns if baseURL uses HTTP instead of HTTPS.
 func NewClient(baseURL, apiToken, region, projectID string) *Client {
+	if strings.HasPrefix(baseURL, "http://") {
+		fmt.Fprintf(os.Stderr, "[WARN] AceCloud API URL uses HTTP (not HTTPS). Credentials will be sent unencrypted. Use https:// for production.\n")
+	}
 	return &Client{
 		BaseURL:   baseURL,
 		APIToken:  apiToken,
@@ -316,11 +334,17 @@ func (c *Client) DoRequest(ctx context.Context, method, path string, body interf
 			return nil, fmt.Errorf("authentication failed (401)")
 		}
 
-		// DEBUG: log raw request and response (append mode)
+		// DEBUG: log request and response with sensitive field redaction
 		if os.Getenv("ACECLOUD_DEBUG") != "" {
-			f, _ := os.OpenFile("/tmp/acecloud_debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+			debugPath := os.Getenv("ACECLOUD_DEBUG_FILE")
+			if debugPath == "" {
+				debugPath = "/tmp/acecloud_debug.log"
+			}
+			f, _ := os.OpenFile(debugPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 			if f != nil {
-				fmt.Fprintf(f, "--- Attempt %d ---\nMethod: %s\nURL: %s\nReqBody: %s\nHTTP Status: %d\nRespBody: %s\n\n", attempt+1, method, fullURL, string(jsonBody), resp.StatusCode, string(respBody))
+				safeReqBody := redactSensitiveFields(string(jsonBody))
+				safeRespBody := redactSensitiveFields(string(respBody))
+				fmt.Fprintf(f, "--- Attempt %d ---\nMethod: %s\nURL: %s\nReqBody: %s\nHTTP Status: %d\nRespBody: %s\n\n", attempt+1, method, fullURL, safeReqBody, resp.StatusCode, safeRespBody)
 				f.Close()
 			}
 		}

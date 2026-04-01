@@ -178,8 +178,9 @@ func (r *instanceResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 				},
 			},
 			"user_data": schema.StringAttribute{
-				Description: "Base64-encoded user-data script (maps to backend field 'script').",
+				Description: "Base64-encoded cloud-init user data script. May contain sensitive bootstrap data.",
 				Optional:    true,
+				Sensitive:   true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},

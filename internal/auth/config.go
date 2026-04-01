@@ -28,11 +28,20 @@ func readCLIConfig(path string) (*AuthResult, error) {
 		path = defaultCLIConfigPath()
 	}
 
-	data, err := os.ReadFile(path)
-	if err != nil {
-		if os.IsNotExist(err) {
+	// Check file permissions — warn if config is readable by others
+	info, statErr := os.Stat(path)
+	if statErr != nil {
+		if os.IsNotExist(statErr) {
 			return nil, fmt.Errorf("ace-cli config file not found at %s (run 'ace auth login' to create it)", path)
 		}
+		return nil, fmt.Errorf("failed to stat ace-cli config at %s: %w", path, statErr)
+	}
+	if info.Mode().Perm()&0077 != 0 {
+		fmt.Fprintf(os.Stderr, "[WARN] ace-cli config %s has overly permissive permissions (%o). Consider running: chmod 600 %s\n", path, info.Mode().Perm(), path)
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
 		return nil, fmt.Errorf("failed to read ace-cli config at %s: %w", path, err)
 	}
 

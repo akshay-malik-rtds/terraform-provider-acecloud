@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/url"
 
 	"github.com/acecloud/terraform-provider-acecloud/internal/client"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
@@ -149,7 +150,7 @@ func (r *registryProjectResource) Delete(ctx context.Context, req resource.Delet
 	}
 
 	// Registry API DELETE requires the registry name, not the numeric ID.
-	path := fmt.Sprintf("%s/%s", apiPath, state.RegistryName.ValueString())
+	path := fmt.Sprintf("%s/%s", apiPath, url.PathEscape(state.RegistryName.ValueString()))
 	_, err := r.client.Delete(ctx, path, nil)
 	if err != nil {
 		resp.Diagnostics.AddError("Failed to delete registry project", err.Error())
