@@ -114,6 +114,9 @@ resource "acecloud_router_interface" "d3_ri_secondary" {
 
   router_id = acecloud_router.d3_router[0].id
   subnet_id = acecloud_subnet.deep_subnet2[0].id
+
+  # Serialize interface creation on the same router to avoid conflicts
+  depends_on = [acecloud_router_interface.d3_ri_primary]
 }
 
 # ═══════════════════════════════════════════════════════════════

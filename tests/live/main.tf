@@ -400,8 +400,7 @@ resource "acecloud_snapshot" "test" {
   name        = "tf-live-test-snapshot"
   volume_id   = acecloud_volume.basic_ssd.id
   description = "Terraform live test, volume snapshot"
-
-  depends_on = [acecloud_volume.basic_ssd]
+  # Implicit dependency via volume_id — no explicit depends_on needed
 }
 
 # ═══════════════════════════════════════════════════════════════
@@ -413,8 +412,7 @@ resource "acecloud_volume_backup" "test" {
   name        = "tf-live-test-backup"
   volume_id   = acecloud_volume.basic_ssd2.id
   description = "Terraform live test, volume backup"
-
-  depends_on = [acecloud_volume.basic_ssd2]
+  # Implicit dependency via volume_id — no explicit depends_on needed
 }
 
 # ═══════════════════════════════════════════════════════════════
