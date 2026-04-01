@@ -123,20 +123,31 @@ resource "acecloud_vpc" "test" {
   subnet_dns_nameservers = ["8.8.8.8", "8.8.4.4"]
 }
 
-# Additional subnet on the same VPC (uses the standalone subnet resource)
+# Standalone subnet on a SEPARATE VPC to avoid instance landing on wrong subnet.
+# When two subnets exist on the same VPC, the backend may assign the instance
+# to either one randomly, breaking FIP association if router interface is only
+# on the inline subnet.
+resource "acecloud_vpc" "subnet_test_vpc" {
+  name              = "tf-live-subnet-test-vpc"
+  admin_state_up    = true
+  subnet_name       = "tf-live-subnet-test-inline"
+  subnet_cidr       = "10.98.0.0/24"
+  subnet_ip_version = 4
+}
+
 resource "acecloud_subnet" "test" {
   name       = "tf-live-test-subnet-2"
-  cidr       = "10.99.1.0/24"
-  vpc_id     = acecloud_vpc.test.id
+  cidr       = "10.98.1.0/24"
+  vpc_id     = acecloud_vpc.subnet_test_vpc.id
   ip_version = 4
 
   enable_dhcp     = true
-  gateway_ip      = "10.99.1.1"
+  gateway_ip      = "10.98.1.1"
   dns_nameservers = ["8.8.8.8", "8.8.4.4"]
 
   allocation_pools {
-    start = "10.99.1.10"
-    end   = "10.99.1.250"
+    start = "10.98.1.10"
+    end   = "10.98.1.250"
   }
 }
 
