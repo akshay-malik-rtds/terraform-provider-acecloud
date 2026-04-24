@@ -231,13 +231,13 @@ func TestSchema_AttributeDescriptions(t *testing.T) {
 	}
 }
 
-// --- Resource list completeness (25 resources) ---
+// --- Resource list completeness (19 resources) ---
 
 func TestResources_Count(t *testing.T) {
 	p := &AceCloudProvider{}
 	resources := p.Resources(context.Background())
-	if len(resources) != 25 {
-		t.Errorf("expected 25 resources, got %d", len(resources))
+	if len(resources) != 19 {
+		t.Errorf("expected 19 resources, got %d", len(resources))
 	}
 }
 
@@ -265,12 +265,6 @@ func TestResources_AllRegistered(t *testing.T) {
 		"acecloud_floating_ip_association",
 		"acecloud_auto_scaling_template",
 		"acecloud_auto_scaling_deployment",
-		"acecloud_caas_secret",
-		"acecloud_caas_deployment",
-		"acecloud_registry_project",
-		"acecloud_registry_replication_rule",
-		"acecloud_k8s_cluster",
-		"acecloud_k8s_node_group",
 	}
 
 	// Get actual type names by instantiating each resource and calling Metadata
@@ -508,8 +502,8 @@ func TestResources_TypeNamesAreSorted(t *testing.T) {
 	sort.Strings(sorted)
 
 	// This is informational — we just verify we can list them
-	if len(names) != 25 {
-		t.Errorf("expected 25 resource names, got %d", len(names))
+	if len(names) != 19 {
+		t.Errorf("expected 19 resource names, got %d", len(names))
 	}
 }
 

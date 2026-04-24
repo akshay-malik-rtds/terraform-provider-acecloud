@@ -14,21 +14,15 @@ import (
 	"github.com/acecloud/terraform-provider-acecloud/internal/datasources/vpcs"
 	"github.com/acecloud/terraform-provider-acecloud/internal/resources/auto_scaling_deployment"
 	"github.com/acecloud/terraform-provider-acecloud/internal/resources/auto_scaling_template"
-	"github.com/acecloud/terraform-provider-acecloud/internal/resources/caas_deployment"
-	"github.com/acecloud/terraform-provider-acecloud/internal/resources/caas_secret"
 	"github.com/acecloud/terraform-provider-acecloud/internal/resources/floating_ip"
 	"github.com/acecloud/terraform-provider-acecloud/internal/resources/floating_ip_association"
 	"github.com/acecloud/terraform-provider-acecloud/internal/resources/instance"
-	"github.com/acecloud/terraform-provider-acecloud/internal/resources/k8s_cluster"
-	"github.com/acecloud/terraform-provider-acecloud/internal/resources/k8s_node_group"
 	"github.com/acecloud/terraform-provider-acecloud/internal/resources/key_pair"
 	"github.com/acecloud/terraform-provider-acecloud/internal/resources/lb_health_monitor"
 	"github.com/acecloud/terraform-provider-acecloud/internal/resources/lb_listener"
 	"github.com/acecloud/terraform-provider-acecloud/internal/resources/lb_pool"
 	"github.com/acecloud/terraform-provider-acecloud/internal/resources/lb_pool_member"
 	"github.com/acecloud/terraform-provider-acecloud/internal/resources/load_balancer"
-	"github.com/acecloud/terraform-provider-acecloud/internal/resources/registry_project"
-	"github.com/acecloud/terraform-provider-acecloud/internal/resources/registry_replication_rule"
 	"github.com/acecloud/terraform-provider-acecloud/internal/resources/router"
 	"github.com/acecloud/terraform-provider-acecloud/internal/resources/router_interface"
 	"github.com/acecloud/terraform-provider-acecloud/internal/resources/security_group"
@@ -271,12 +265,6 @@ func (p *AceCloudProvider) Resources(_ context.Context) []func() resource.Resour
 		floating_ip_association.NewResource,
 		auto_scaling_template.NewResource,
 		auto_scaling_deployment.NewResource,
-		caas_secret.NewResource,
-		caas_deployment.NewResource,
-		registry_project.NewResource,
-		registry_replication_rule.NewResource,
-		k8s_cluster.NewResource,
-		k8s_node_group.NewResource,
 	}
 }
 
