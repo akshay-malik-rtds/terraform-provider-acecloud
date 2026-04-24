@@ -33,3 +33,6 @@ __pycache__/
 *.pyc
 *.pptx
 *.py
+
+# Internal live / acceptance tests (not published to registry)
+tests/live/

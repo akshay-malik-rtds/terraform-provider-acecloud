@@ -128,7 +128,7 @@ func (r *routerInterfaceResource) Read(ctx context.Context, req resource.ReadReq
 		return
 	}
 
-	// GET /os/neutron/interfaces/{router_id} returns array of interfaces
+	// GET interfaces/{router_id} returns an array of interfaces
 	path := fmt.Sprintf("%s/%s", apiBasePath, state.RouterID.ValueString())
 	apiResp, err := r.client.Get(ctx, path, nil)
 	if err != nil {

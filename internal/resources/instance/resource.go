@@ -489,7 +489,7 @@ func volumeTypeToBackend(userType string) string {
 	return userType
 }
 
-// volumeTypeFromBackend maps backend OpenStack volume type names back to user-friendly names.
+// volumeTypeFromBackend maps backend volume type names back to user-friendly aliases.
 func volumeTypeFromBackend(backendType string) string {
 	mapping := map[string]string{
 		"NVMe based High IOPS Storage": "ssd",

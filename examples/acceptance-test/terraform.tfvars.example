@@ -13,7 +13,7 @@
 # api_url   = "http://localhost:3000"
 # api_token = "your-jwt-or-developer-token"
 # region    = "mumbai"
-# project_id = "your-openstack-project-uuid"
+# project_id = "your-acecloud-project-uuid"
 #
 # ─── Method 2: Email/Password Login ──────────────────────────
 # (Not supported for 2FA-enabled accounts)
@@ -40,4 +40,4 @@
 api_url    = "http://localhost:3000"
 api_token  = "your-jwt-token-here"
 region     = "mumbai"
-project_id = "your-openstack-project-uuid"
+project_id = "your-acecloud-project-uuid"

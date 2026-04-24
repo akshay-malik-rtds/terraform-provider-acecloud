@@ -33,6 +33,6 @@ variable "acecloud_region" {
 }
 
 variable "acecloud_project_id" {
-  description = "OpenStack project UUID"
+  description = "AceCloud project UUID"
   type        = string
 }
