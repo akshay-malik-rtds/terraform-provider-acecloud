@@ -36,3 +36,6 @@ __pycache__/
 
 # Internal live / acceptance tests (not published to registry)
 tests/live/
+
+# Internal Go unit tests (not published to registry — kept for local CI only)
+*_test.go
