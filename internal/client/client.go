@@ -14,54 +14,28 @@ import (
 	"time"
 )
 
-// Pre-compiled regexes for sanitizeErrorMessage — compiled once at package init.
-var (
-	internalIDRe  = regexp.MustCompile(`(?i)(request[_-]id|transaction[_-]id|x-openstack-request-id)\s*[:=]\s*\S+\s*`)
-	serviceNameRe = regexp.MustCompile(`(?i)\b(Nova|Neutron|Cinder|Octavia|Glance|Keystone|Heat|OpenStack)\b`)
-	dupBackendRe  = regexp.MustCompile(`(?i)\bbackend(\s+backend)+\b`)
-	structRe      = regexp.MustCompile(`(?i)(NeutronError|computeFault|cinderException)\s*[:]\s*`)
-	itemNotFoundRe = regexp.MustCompile(`(?i)itemNotFound\s*[:]\s*`)
-	faultstringRe = regexp.MustCompile(`(?i)faultstring\s*[:=]\s*"([^"]*)"[,;]?\s*`)
-	faultMetaRe   = regexp.MustCompile(`(?i)(faultcode|debuginfo)\s*[:=]\s*"?[^"]*"?[,;]?\s*`)
-	spaceRe       = regexp.MustCompile(`\s{2,}`)
-)
+// Pre-compiled regex used to collapse runs of whitespace produced by the
+// JSON-error flattener.
+var spaceRe = regexp.MustCompile(`\s{2,}`)
 
-// sanitizeErrorMessage strips internal backend details from API error messages
-// so that Terraform output never leaks implementation details to end users.
+// sanitizeErrorMessage prepares an API error message for display. It flattens
+// JSON validation objects (e.g. {"field":["msg1","msg2"]}) into a readable
+// "field: msg1; field: msg2" string and collapses excess whitespace. The
+// npc-api backend already returns user-safe error text, so no internal-tech
+// filtering is applied here.
 func sanitizeErrorMessage(msg string) string {
 	if msg == "" {
 		return msg
 	}
 
-	// If the message looks like a raw JSON validation object, flatten it first.
+	// If the message looks like a raw JSON validation object, flatten it.
 	if strings.HasPrefix(strings.TrimSpace(msg), "{") {
 		if flattened := flattenJSONError(msg); flattened != "" {
 			msg = flattened
 		}
 	}
 
-	// Replace known leaky messages with user-friendly alternatives.
-	replacements := map[string]string{
-		"OpenStack authentication failed":              "Authentication failed",
-		"Keystone service is temporarily unavailable":  "Authentication service temporarily unavailable",
-		"OpenStack service is temporarily unavailable": "Cloud service temporarily unavailable",
-	}
-	for pattern, replacement := range replacements {
-		if strings.Contains(msg, pattern) {
-			msg = strings.ReplaceAll(msg, pattern, replacement)
-		}
-	}
-
-	msg = internalIDRe.ReplaceAllString(msg, "")
-	msg = serviceNameRe.ReplaceAllString(msg, "backend")
-	msg = dupBackendRe.ReplaceAllString(msg, "backend")
-	msg = structRe.ReplaceAllString(msg, "")
-	msg = itemNotFoundRe.ReplaceAllString(msg, "Not found: ")
-	msg = faultstringRe.ReplaceAllString(msg, "$1 ")
-	msg = faultMetaRe.ReplaceAllString(msg, "")
-	msg = strings.TrimSpace(spaceRe.ReplaceAllString(msg, " "))
-
-	return msg
+	return strings.TrimSpace(spaceRe.ReplaceAllString(msg, " "))
 }
 
 // flattenJSONError attempts to parse a JSON validation error object
