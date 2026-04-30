@@ -19,24 +19,24 @@ var (
 
 // autoScalingTemplateModel maps the resource schema to Go types.
 type autoScalingTemplateModel struct {
-	ID                   types.String `tfsdk:"id"`
-	Name                 types.String `tfsdk:"name"`
-	Type                 types.String `tfsdk:"type"`
-	Description          types.String `tfsdk:"description"`
-	VolumeSize           types.Int64  `tfsdk:"volume_size"`
-	VolDelOnTermination  types.Bool   `tfsdk:"vol_del_on_termination"`
-	FlavorID             types.String `tfsdk:"flavor_id"`
-	ImageID              types.String `tfsdk:"image_id"`
-	SnapshotID           types.String `tfsdk:"snapshot_id"`
-	KeyName              types.String `tfsdk:"key_name"`
-	NetworkID            types.String `tfsdk:"network_id"`
-	SubnetID             types.String `tfsdk:"subnet_id"`
-	SecurityGroups       types.List   `tfsdk:"security_groups"`
-	IsInstanceSnapshot   types.Bool   `tfsdk:"is_instance_snapshot"`
-	Status               types.String `tfsdk:"status"`
-	Region               types.String `tfsdk:"region"`
-	CreatedAt            types.String `tfsdk:"created_at"`
-	UpdatedAt            types.String `tfsdk:"updated_at"`
+	ID                  types.String `tfsdk:"id"`
+	Name                types.String `tfsdk:"name"`
+	Type                types.String `tfsdk:"type"`
+	Description         types.String `tfsdk:"description"`
+	VolumeSize          types.Int64  `tfsdk:"volume_size"`
+	VolDelOnTermination types.Bool   `tfsdk:"vol_del_on_termination"`
+	FlavorID            types.String `tfsdk:"flavor_id"`
+	ImageID             types.String `tfsdk:"image_id"`
+	SnapshotID          types.String `tfsdk:"snapshot_id"`
+	KeyName             types.String `tfsdk:"key_name"`
+	NetworkID           types.String `tfsdk:"network_id"`
+	SubnetID            types.String `tfsdk:"subnet_id"`
+	SecurityGroups      types.List   `tfsdk:"security_groups"`
+	IsInstanceSnapshot  types.Bool   `tfsdk:"is_instance_snapshot"`
+	Status              types.String `tfsdk:"status"`
+	Region              types.String `tfsdk:"region"`
+	CreatedAt           types.String `tfsdk:"created_at"`
+	UpdatedAt           types.String `tfsdk:"updated_at"`
 }
 
 // autoScalingTemplateSchema returns the Terraform resource schema.

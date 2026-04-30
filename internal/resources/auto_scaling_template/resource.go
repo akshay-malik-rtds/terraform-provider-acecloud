@@ -59,24 +59,24 @@ type templateUpdateRequest struct {
 // Note: The API returns nested objects for flavor, image, network, snapshot,
 // and security_groups (each with id+name), not flat IDs.
 type templateAPIResponse struct {
-	ID                  string                   `json:"id"`
-	Name                string                   `json:"name"`
-	Type                string                   `json:"type"`
-	Description         string                   `json:"description"`
-	VolumeSize          int64                    `json:"volume_size"`
-	VolDelOnTermination bool                     `json:"vol_del_on_termination"`
-	Flavor              *nestedIDName            `json:"flavor"`
-	Image               *nestedIDName            `json:"image"`
-	Snapshot            *nestedIDName            `json:"snapshot"`
-	KeyName             string                   `json:"key_name"`
-	Network             *nestedIDName            `json:"network"`
-	SubnetID            string                   `json:"subnet_id"`
-	SecurityGroups      []nestedIDName           `json:"security_groups"`
-	IsInstanceSnapshot  bool                     `json:"is_instance_snapshot"`
-	Status              string                   `json:"status"`
-	Region              string                   `json:"region"`
-	CreatedAt           string                   `json:"created_at"`
-	UpdatedAt           string                   `json:"updated_at"`
+	ID                  string         `json:"id"`
+	Name                string         `json:"name"`
+	Type                string         `json:"type"`
+	Description         string         `json:"description"`
+	VolumeSize          int64          `json:"volume_size"`
+	VolDelOnTermination bool           `json:"vol_del_on_termination"`
+	Flavor              *nestedIDName  `json:"flavor"`
+	Image               *nestedIDName  `json:"image"`
+	Snapshot            *nestedIDName  `json:"snapshot"`
+	KeyName             string         `json:"key_name"`
+	Network             *nestedIDName  `json:"network"`
+	SubnetID            string         `json:"subnet_id"`
+	SecurityGroups      []nestedIDName `json:"security_groups"`
+	IsInstanceSnapshot  bool           `json:"is_instance_snapshot"`
+	Status              string         `json:"status"`
+	Region              string         `json:"region"`
+	CreatedAt           string         `json:"created_at"`
+	UpdatedAt           string         `json:"updated_at"`
 }
 
 // nestedIDName represents the API's nested {id, name} objects.

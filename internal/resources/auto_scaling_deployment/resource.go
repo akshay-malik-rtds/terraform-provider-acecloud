@@ -27,18 +27,18 @@ type autoScalingDeploymentResource struct {
 // --- API types ---
 
 type deploymentCreateRequest struct {
-	Name             string              `json:"name"`
-	Description      string              `json:"description,omitempty"`
-	TemplateID       string              `json:"template_id"`
-	DesiredCapacity  int64               `json:"desired_capacity"`
-	MaxCapacity      int64               `json:"max_capacity"`
-	NodesScaleCount  int64               `json:"nodes_scale_count"`
-	ScalingParameter string              `json:"scaling_parameter"`
-	MinThreshold     int64               `json:"min_threshold"`
-	MaxThreshold     int64               `json:"max_threshold"`
-	CoolDownTime     int64               `json:"cool_down_time"`
-	UserEmail        []string            `json:"user_email"`
-	IsIntegratedLB   bool                `json:"is_integrated_with_lb"`
+	Name             string               `json:"name"`
+	Description      string               `json:"description,omitempty"`
+	TemplateID       string               `json:"template_id"`
+	DesiredCapacity  int64                `json:"desired_capacity"`
+	MaxCapacity      int64                `json:"max_capacity"`
+	NodesScaleCount  int64                `json:"nodes_scale_count"`
+	ScalingParameter string               `json:"scaling_parameter"`
+	MinThreshold     int64                `json:"min_threshold"`
+	MaxThreshold     int64                `json:"max_threshold"`
+	CoolDownTime     int64                `json:"cool_down_time"`
+	UserEmail        []string             `json:"user_email"`
+	IsIntegratedLB   bool                 `json:"is_integrated_with_lb"`
 	LBData           *lbDataCreateRequest `json:"lb_data,omitempty"`
 }
 

@@ -19,14 +19,14 @@ var (
 
 // routerResourceModel maps the resource schema to a Go struct.
 type routerResourceModel struct {
-	ID                        types.String `tfsdk:"id"`
-	Name                      types.String `tfsdk:"name"`
-	Description               types.String `tfsdk:"description"`
-	AdminStateUp              types.Bool   `tfsdk:"admin_state_up"`
-	ExternalGatewayNetworkID  types.String `tfsdk:"external_gateway_network_id"`
-	Status                    types.String `tfsdk:"status"`
-	CreatedAt                 types.String `tfsdk:"created_at"`
-	UpdatedAt                 types.String `tfsdk:"updated_at"`
+	ID                       types.String `tfsdk:"id"`
+	Name                     types.String `tfsdk:"name"`
+	Description              types.String `tfsdk:"description"`
+	AdminStateUp             types.Bool   `tfsdk:"admin_state_up"`
+	ExternalGatewayNetworkID types.String `tfsdk:"external_gateway_network_id"`
+	Status                   types.String `tfsdk:"status"`
+	CreatedAt                types.String `tfsdk:"created_at"`
+	UpdatedAt                types.String `tfsdk:"updated_at"`
 }
 
 func routerSchema() schema.Schema {

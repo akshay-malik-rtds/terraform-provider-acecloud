@@ -21,11 +21,11 @@ import (
 // Default timeouts and intervals.
 const (
 	DefaultStatusTimeout  = 5 * time.Minute  // WaitForStatus
-	DefaultStatusInterval = 5 * time.Second   // WaitForStatus poll interval
-	DefaultRetryTimeout   = 2 * time.Minute   // RetryOnConflict
-	DefaultRetryInterval  = 10 * time.Second  // RetryOnConflict retry interval
-	DefaultPollTimeout    = 2 * time.Minute   // PollForResource
-	DefaultPollInterval   = 5 * time.Second   // PollForResource poll interval
+	DefaultStatusInterval = 5 * time.Second  // WaitForStatus poll interval
+	DefaultRetryTimeout   = 2 * time.Minute  // RetryOnConflict
+	DefaultRetryInterval  = 10 * time.Second // RetryOnConflict retry interval
+	DefaultPollTimeout    = 2 * time.Minute  // PollForResource
+	DefaultPollInterval   = 5 * time.Second  // PollForResource poll interval
 )
 
 // StatusResult is returned by the refresh function passed to WaitForStatus.
@@ -41,11 +41,11 @@ type RefreshFunc func(ctx context.Context) (*StatusResult, error)
 
 // WaitForStatusOpts configures WaitForStatus.
 type WaitForStatusOpts struct {
-	Refresh       RefreshFunc   // Required: function that returns current status
-	TargetStatus  []string      // Statuses that mean "done" (e.g. ["ACTIVE"])
-	ErrorStatus   []string      // Statuses that mean "failed" (e.g. ["ERROR"])
-	Timeout       time.Duration // Overall timeout (0 = DefaultStatusTimeout)
-	PollInterval  time.Duration // Interval between polls (0 = DefaultStatusInterval)
+	Refresh      RefreshFunc   // Required: function that returns current status
+	TargetStatus []string      // Statuses that mean "done" (e.g. ["ACTIVE"])
+	ErrorStatus  []string      // Statuses that mean "failed" (e.g. ["ERROR"])
+	Timeout      time.Duration // Overall timeout (0 = DefaultStatusTimeout)
+	PollInterval time.Duration // Interval between polls (0 = DefaultStatusInterval)
 }
 
 // WaitForStatus polls a resource until it reaches one of the target or error

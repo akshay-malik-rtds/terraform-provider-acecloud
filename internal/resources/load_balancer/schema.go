@@ -18,19 +18,19 @@ var (
 
 // loadBalancerResourceModel maps the resource schema to a Go struct.
 type loadBalancerResourceModel struct {
-	ID                  types.String `tfsdk:"id"`
-	Name                types.String `tfsdk:"name"`
-	SubnetID            types.String `tfsdk:"subnet_id"`
-	Description         types.String `tfsdk:"description"`
-	Tags                types.List   `tfsdk:"tags"`
-	VIPAddress          types.String `tfsdk:"vip_address"`
-	VIPPortID           types.String `tfsdk:"vip_port_id"`
-	VIPNetworkID        types.String `tfsdk:"vip_network_id"`
-	ProvisioningStatus  types.String `tfsdk:"provisioning_status"`
-	OperatingStatus     types.String `tfsdk:"operating_status"`
-	Provider            types.String `tfsdk:"provider_name"`
-	CreatedAt           types.String `tfsdk:"created_at"`
-	UpdatedAt           types.String `tfsdk:"updated_at"`
+	ID                 types.String `tfsdk:"id"`
+	Name               types.String `tfsdk:"name"`
+	SubnetID           types.String `tfsdk:"subnet_id"`
+	Description        types.String `tfsdk:"description"`
+	Tags               types.List   `tfsdk:"tags"`
+	VIPAddress         types.String `tfsdk:"vip_address"`
+	VIPPortID          types.String `tfsdk:"vip_port_id"`
+	VIPNetworkID       types.String `tfsdk:"vip_network_id"`
+	ProvisioningStatus types.String `tfsdk:"provisioning_status"`
+	OperatingStatus    types.String `tfsdk:"operating_status"`
+	Provider           types.String `tfsdk:"provider_name"`
+	CreatedAt          types.String `tfsdk:"created_at"`
+	UpdatedAt          types.String `tfsdk:"updated_at"`
 }
 
 func loadBalancerSchema() schema.Schema {
