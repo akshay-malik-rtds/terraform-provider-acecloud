@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Provider Documentation
+    url: https://registry.terraform.io/providers/akshay-malik-rtds/acecloud/latest/docs
+    about: Reference documentation for resources, data sources, and configuration
