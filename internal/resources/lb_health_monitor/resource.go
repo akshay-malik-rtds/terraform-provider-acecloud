@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/acecloud/terraform-provider-acecloud/internal/client"
-	"github.com/acecloud/terraform-provider-acecloud/internal/wait"
+	"github.com/akshay-malik-rtds/terraform-provider-acecloud/internal/client"
+	"github.com/akshay-malik-rtds/terraform-provider-acecloud/internal/wait"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )

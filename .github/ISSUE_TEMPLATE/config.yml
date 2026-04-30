@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Provider Documentation
+    url: https://registry.terraform.io/providers/akshay-malik-rtds/acecloud/latest/docs
+    about: Reference documentation for resources, data sources, and configuration
+  - name: AceCloud Platform Support
+    url: https://acecloud.ai/support
+    about: Issues with the AceCloud platform itself (not the Terraform provider)
+  - name: Security Disclosure
+    url: https://github.com/akshay-malik-rtds/terraform-provider-acecloud/blob/main/SECURITY.md
+    about: Report a security issue privately (do not open a public issue)

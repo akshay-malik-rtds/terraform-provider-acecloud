@@ -4,7 +4,7 @@ import (
 	"context"
 	"log"
 
-	"github.com/acecloud/terraform-provider-acecloud/internal/provider"
+	"github.com/akshay-malik-rtds/terraform-provider-acecloud/internal/provider"
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
 )
 
