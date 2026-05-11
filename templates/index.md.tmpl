@@ -1,0 +1,45 @@
+---
+page_title: "{{.ProviderShortName}} Provider"
+description: |-
+  {{ .Description | trimspace }}
+---
+
+# {{ .ProviderShortName }} Provider
+
+The AceCloud Terraform Provider lets you manage AceCloud infrastructure as code — compute instances, block storage, networking, load balancing, auto scaling, and IAM API keys.
+
+## Example Usage
+
+{{ tffile "examples/provider/main.tf" }}
+
+## Authentication
+
+The provider supports four authentication methods, tried in this order:
+
+1. **API key** (recommended for automation) — long-lived credentials suitable for CI/CD pipelines. Set `api_key_id`, `api_key_secret`, and `api_key_service_name` in the provider block, or use the environment variables `ACECLOUD_API_KEY_ID`, `ACECLOUD_API_KEY_SECRET`, and `ACECLOUD_API_KEY_SERVICE_NAME`. Create a key with `ace api-key create --service-name <name>`.
+
+2. **Static JWT token** — short-lived (24 hour) bearer token. Set `api_token` or `ACECLOUD_API_TOKEN`. Useful for interactive sessions; not recommended for unattended automation.
+
+3. **Email and password** — programmatic login via `POST /auth/login`. Set `email` and `password`, or `ACECLOUD_EMAIL` and `ACECLOUD_PASSWORD`. Not supported for accounts with 2FA enabled.
+
+4. **`ace-cli` config** (zero configuration) — reads `~/.ace/config.json`, the file written by `ace auth login`. Useful for local development when you're already authenticated through the CLI.
+
+If multiple methods are configured, the highest-priority method wins.
+
+## Environment variables
+
+Every provider argument can be set via an environment variable instead of an HCL attribute. This is the recommended way to keep credentials out of version control.
+
+| Variable | Provider attribute |
+|---|---|
+| `ACECLOUD_API_URL` | `api_url` |
+| `ACECLOUD_API_KEY_ID` | `api_key_id` |
+| `ACECLOUD_API_KEY_SECRET` | `api_key_secret` |
+| `ACECLOUD_API_KEY_SERVICE_NAME` | `api_key_service_name` |
+| `ACECLOUD_API_TOKEN` | `api_token` |
+| `ACECLOUD_EMAIL` | `email` |
+| `ACECLOUD_PASSWORD` | `password` |
+| `ACECLOUD_REGION` | `region` |
+| `ACECLOUD_PROJECT_ID` | `project_id` |
+
+{{ .SchemaMarkdown | trimspace }}
