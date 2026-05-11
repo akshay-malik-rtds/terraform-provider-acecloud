@@ -8,6 +8,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
@@ -55,6 +56,8 @@ type instanceResourceModel struct {
 	UserData            types.String `tfsdk:"user_data"`
 	AdminPassword       types.String `tfsdk:"admin_password"`
 	BillingType         types.String `tfsdk:"billing_type"`
+	PowerState          types.String `tfsdk:"power_state"`
+	Locked              types.Bool   `tfsdk:"locked"`
 	Status              types.String `tfsdk:"status"`
 }
 
@@ -82,11 +85,8 @@ func (r *instanceResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 				},
 			},
 			"flavor_id": schema.StringAttribute{
-				Description: "UUID of the flavor (maps to backend field 'flavor').",
+				Description: "UUID of the compute flavor. Changing this triggers an in-place resize via PUT /cloud/instances/{id}/resize and the resize confirmation step (no instance recreation needed). The instance briefly enters RESIZE/VERIFY_RESIZE states; the provider waits for the new flavor to be active before returning. Note: backend support for resize requires multiple compute hosts in the region; on single-host clusters this may fail.",
 				Required:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.RequiresReplace(),
-				},
 			},
 			"boot_uuid": schema.StringAttribute{
 				Description: "UUID of the boot source (image, snapshot, or volume).",
@@ -121,12 +121,9 @@ func (r *instanceResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 				},
 			},
 			"security_group_ids": schema.ListAttribute{
-				Description: "List of security group UUIDs (maps to backend field 'security_group'). Maximum 7 groups.",
+				Description: "List of security group UUIDs (maps to backend field 'security_group'). Maximum 7 groups. Updated in-place via PUT /cloud/instances/{id}/security-groups when changed.",
 				Required:    true,
 				ElementType: types.StringType,
-				PlanModifiers: []planmodifier.List{
-					listplanmodifier.RequiresReplace(),
-				},
 			},
 			"billing_type": schema.StringAttribute{
 				Description: "Billing type for the instance flavor. Valid: hourly, monthly, quarterly, half-yearly, yearly. Defaults to 'monthly'. Spot pricing is not exposed by this resource — it has a separate launch flow on the platform.",
@@ -179,9 +176,25 @@ func (r *instanceResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 				},
 			},
 
+			"power_state": schema.StringAttribute{
+				Description: "Power state of the instance: `ON` (running) or `OFF` (stopped). Defaults to `ON`. Changing this value calls the platform power action; the instance is not destroyed.",
+				Optional:    true,
+				Computed:    true,
+				Default:     stringdefault.StaticString("ON"),
+				Validators: []validator.String{
+					stringvalidator.OneOf("ON", "OFF"),
+				},
+			},
+			"locked": schema.BoolAttribute{
+				Description: "Whether the instance is locked. A locked instance cannot be deleted, rebooted, or otherwise mutated until unlocked. Defaults to `false`. Toggling this calls the platform lock action.",
+				Optional:    true,
+				Computed:    true,
+				Default:     booldefault.StaticBool(false),
+			},
+
 			// ── Computed (read-only) ─────────────────────────────────────────
 			"status": schema.StringAttribute{
-				Description: "Current status of the instance (e.g. ACTIVE, BUILD).",
+				Description: "Current status of the instance (e.g. ACTIVE, BUILD, SHUTOFF).",
 				Computed:    true,
 			},
 		},

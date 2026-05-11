@@ -27,32 +27,38 @@ type templateCreateRequest struct {
 	Name                string   `json:"name"`
 	Type                string   `json:"type"`
 	Description         string   `json:"description,omitempty"`
+	VolumeType          string   `json:"volume_type"`
 	VolumeSize          int64    `json:"volume_size"`
 	VolDelOnTermination bool     `json:"vol_del_on_termination"`
 	FlavorID            string   `json:"flavor_id"`
 	ImageID             string   `json:"image_id,omitempty"`
 	SnapshotID          string   `json:"snapshot_id,omitempty"`
+	SourceInstanceID    string   `json:"source_instance_id,omitempty"`
 	KeyName             string   `json:"key_name,omitempty"`
 	NetworkID           string   `json:"network_id"`
 	SubnetID            string   `json:"subnet_id"`
 	SecurityGroups      []string `json:"security_groups"`
 	IsInstanceSnapshot  bool     `json:"is_instance_snapshot"`
+	UserData            string   `json:"user_data,omitempty"`
 }
 
 type templateUpdateRequest struct {
 	Name                string   `json:"name"`
 	Type                string   `json:"type"`
 	Description         string   `json:"description,omitempty"`
+	VolumeType          string   `json:"volume_type"`
 	VolumeSize          int64    `json:"volume_size"`
 	VolDelOnTermination bool     `json:"vol_del_on_termination"`
 	FlavorID            string   `json:"flavor_id"`
 	ImageID             string   `json:"image_id,omitempty"`
 	SnapshotID          string   `json:"snapshot_id,omitempty"`
+	SourceInstanceID    string   `json:"source_instance_id,omitempty"`
 	KeyName             string   `json:"key_name,omitempty"`
 	NetworkID           string   `json:"network_id"`
 	SubnetID            string   `json:"subnet_id"`
 	SecurityGroups      []string `json:"security_groups"`
 	IsInstanceSnapshot  bool     `json:"is_instance_snapshot"`
+	UserData            string   `json:"user_data,omitempty"`
 }
 
 // templateAPIResponse matches the actual API response structure.
@@ -63,16 +69,19 @@ type templateAPIResponse struct {
 	Name                string         `json:"name"`
 	Type                string         `json:"type"`
 	Description         string         `json:"description"`
+	VolumeType          string         `json:"volume_type"`
 	VolumeSize          int64          `json:"volume_size"`
 	VolDelOnTermination bool           `json:"vol_del_on_termination"`
 	Flavor              *nestedIDName  `json:"flavor"`
 	Image               *nestedIDName  `json:"image"`
 	Snapshot            *nestedIDName  `json:"snapshot"`
+	SourceInstanceID    string         `json:"source_instance_id"`
 	KeyName             string         `json:"key_name"`
 	Network             *nestedIDName  `json:"network"`
 	SubnetID            string         `json:"subnet_id"`
 	SecurityGroups      []nestedIDName `json:"security_groups"`
 	IsInstanceSnapshot  bool           `json:"is_instance_snapshot"`
+	UserData            string         `json:"user_data"`
 	Status              string         `json:"status"`
 	Region              string         `json:"region"`
 	CreatedAt           string         `json:"created_at"`
@@ -127,6 +136,32 @@ type createResponseID struct {
 	ID string `json:"id"`
 }
 
+// volumeTypeToBackend maps user-friendly volume type aliases to the backend
+// names. Mirrors the helper in `acecloud_volume`.
+func volumeTypeToBackend(userType string) string {
+	mapping := map[string]string{
+		"ssd":  "NVMe based High IOPS Storage",
+		"nvme": "NVMe based High IOPS Storage",
+		"hdd":  "HDD based Storage",
+	}
+	if backendType, ok := mapping[userType]; ok {
+		return backendType
+	}
+	return userType
+}
+
+// volumeTypeFromBackend maps backend volume type names back to short aliases.
+func volumeTypeFromBackend(backendType string) string {
+	mapping := map[string]string{
+		"NVMe based High IOPS Storage": "ssd",
+		"HDD based Storage":            "hdd",
+	}
+	if userType, ok := mapping[backendType]; ok {
+		return userType
+	}
+	return backendType
+}
+
 func NewResource() resource.Resource {
 	return &autoScalingTemplateResource{}
 }
@@ -158,6 +193,7 @@ func buildCreateRequest(ctx context.Context, plan *autoScalingTemplateModel) tem
 	body := templateCreateRequest{
 		Name:                plan.Name.ValueString(),
 		Type:                plan.Type.ValueString(),
+		VolumeType:          volumeTypeToBackend(plan.VolumeType.ValueString()),
 		VolumeSize:          plan.VolumeSize.ValueInt64(),
 		VolDelOnTermination: plan.VolDelOnTermination.ValueBool(),
 		FlavorID:            plan.FlavorID.ValueString(),
@@ -175,8 +211,14 @@ func buildCreateRequest(ctx context.Context, plan *autoScalingTemplateModel) tem
 	if !plan.SnapshotID.IsNull() && !plan.SnapshotID.IsUnknown() {
 		body.SnapshotID = plan.SnapshotID.ValueString()
 	}
+	if !plan.SourceInstanceID.IsNull() && !plan.SourceInstanceID.IsUnknown() {
+		body.SourceInstanceID = plan.SourceInstanceID.ValueString()
+	}
 	if !plan.KeyName.IsNull() && !plan.KeyName.IsUnknown() {
 		body.KeyName = plan.KeyName.ValueString()
+	}
+	if !plan.UserData.IsNull() && !plan.UserData.IsUnknown() {
+		body.UserData = plan.UserData.ValueString()
 	}
 
 	if !plan.SecurityGroups.IsNull() && !plan.SecurityGroups.IsUnknown() {
@@ -192,6 +234,7 @@ func buildUpdateRequest(ctx context.Context, plan *autoScalingTemplateModel) tem
 	body := templateUpdateRequest{
 		Name:                plan.Name.ValueString(),
 		Type:                plan.Type.ValueString(),
+		VolumeType:          volumeTypeToBackend(plan.VolumeType.ValueString()),
 		VolumeSize:          plan.VolumeSize.ValueInt64(),
 		VolDelOnTermination: plan.VolDelOnTermination.ValueBool(),
 		FlavorID:            plan.FlavorID.ValueString(),
@@ -209,8 +252,14 @@ func buildUpdateRequest(ctx context.Context, plan *autoScalingTemplateModel) tem
 	if !plan.SnapshotID.IsNull() && !plan.SnapshotID.IsUnknown() {
 		body.SnapshotID = plan.SnapshotID.ValueString()
 	}
+	if !plan.SourceInstanceID.IsNull() && !plan.SourceInstanceID.IsUnknown() {
+		body.SourceInstanceID = plan.SourceInstanceID.ValueString()
+	}
 	if !plan.KeyName.IsNull() && !plan.KeyName.IsUnknown() {
 		body.KeyName = plan.KeyName.ValueString()
+	}
+	if !plan.UserData.IsNull() && !plan.UserData.IsUnknown() {
+		body.UserData = plan.UserData.ValueString()
 	}
 
 	if !plan.SecurityGroups.IsNull() && !plan.SecurityGroups.IsUnknown() {
@@ -230,6 +279,14 @@ func mapAPIResponseToState(ctx context.Context, model *autoScalingTemplateModel,
 	model.VolDelOnTermination = types.BoolValue(apiResp.VolDelOnTermination)
 	model.IsInstanceSnapshot = types.BoolValue(apiResp.IsInstanceSnapshot)
 	model.SubnetID = types.StringValue(apiResp.SubnetID)
+
+	// Volume type — preserve user's alias if it maps to backend value, else
+	// store the alias form (avoids unnecessary diff).
+	if model.VolumeType.ValueString() != "" && volumeTypeToBackend(model.VolumeType.ValueString()) == apiResp.VolumeType {
+		// Keep existing value — no change needed.
+	} else if apiResp.VolumeType != "" {
+		model.VolumeType = types.StringValue(volumeTypeFromBackend(apiResp.VolumeType))
+	}
 
 	// Nested objects → flat IDs
 	model.FlavorID = types.StringValue(apiResp.FlavorID())
@@ -254,10 +311,22 @@ func mapAPIResponseToState(ctx context.Context, model *autoScalingTemplateModel,
 		model.SnapshotID = types.StringNull()
 	}
 
+	if apiResp.SourceInstanceID != "" {
+		model.SourceInstanceID = types.StringValue(apiResp.SourceInstanceID)
+	} else if model.SourceInstanceID.IsNull() {
+		model.SourceInstanceID = types.StringNull()
+	}
+
 	if apiResp.KeyName != "" {
 		model.KeyName = types.StringValue(apiResp.KeyName)
 	} else if model.KeyName.IsNull() {
 		model.KeyName = types.StringNull()
+	}
+
+	if apiResp.UserData != "" {
+		model.UserData = types.StringValue(apiResp.UserData)
+	} else if model.UserData.IsNull() {
+		model.UserData = types.StringNull()
 	}
 
 	// Security groups — nested {id, name} objects → flat ID list

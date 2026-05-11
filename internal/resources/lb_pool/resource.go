@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/akshay-malik-rtds/terraform-provider-acecloud/internal/client"
 	"github.com/akshay-malik-rtds/terraform-provider-acecloud/internal/wait"
@@ -245,10 +246,15 @@ func (r *lbPoolResource) Create(ctx context.Context, req resource.CreateRequest,
 		return
 	}
 
-	// Pool creation is async (API returns data:{}). Poll until it appears.
+	// Pool creation is async — the API enqueues the request and returns
+	// data:{}, then a worker drains the queue and provisions the pool on the
+	// upstream backend. Poll the list endpoint until the pool appears. Use an
+	// extended timeout (5 min) since worker latency can spike under load.
 	targetName := plan.Name.ValueString()
 
 	item, err := wait.PollForResource(ctx, wait.PollForResourceOpts{
+		Timeout:      5 * time.Minute,
+		PollInterval: 5 * time.Second,
 		List: func(ctx context.Context) (interface{}, error) {
 			listResp, err := r.client.Get(ctx, apiPath, nil)
 			if err != nil {
@@ -272,7 +278,7 @@ func (r *lbPoolResource) Create(ctx context.Context, req resource.CreateRequest,
 	})
 	if err != nil {
 		resp.Diagnostics.AddError("Failed to create LB pool",
-			fmt.Sprintf("Pool %q was not found after polling: %s", targetName, err))
+			fmt.Sprintf("Pool %q never appeared after the create request was scheduled. The pool create job may be stuck in the platform queue. Contact platform support if this persists. Underlying error: %s", targetName, err))
 		return
 	}
 	found := item.(*poolAPIResponse)

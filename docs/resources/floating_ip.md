@@ -21,7 +21,7 @@ Manages an Ace Cloud floating IP address.
 
 ### Optional
 
-- `description` (String) Description of the floating IP. Changing this forces recreation.
+- `description` (String) Description of the floating IP. Backend does not provide a FIP update endpoint; changing this forces recreation. (FIPs are inexpensive to recreate.)
 - `port_id` (String) ID of the port to associate the floating IP with. Changing this forces recreation.
 
 ### Read-Only

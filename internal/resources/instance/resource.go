@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/akshay-malik-rtds/terraform-provider-acecloud/internal/client"
 	"github.com/akshay-malik-rtds/terraform-provider-acecloud/internal/wait"
@@ -118,6 +119,7 @@ type readInstanceResponse struct {
 	Name             string            `json:"name"`
 	Description      string            `json:"description"`
 	Status           string            `json:"status"`
+	Locked           bool              `json:"locked"`
 	Metadata         map[string]string `json:"metadata"`
 	Key              string            `json:"key"`
 	// These are extracted from the raw response in parseInstanceData()
@@ -125,6 +127,21 @@ type readInstanceResponse struct {
 	ImageID        string
 	SecurityGroups []string // security group IDs
 	Networks       []string // network names from addresses
+}
+
+// powerStateFromStatus converts a backend instance status into the
+// provider's power_state value. ACTIVE → ON; SHUTOFF/STOPPED/PAUSED/SUSPENDED → OFF.
+// Other transient states (BUILD, RESIZE, …) keep the previous value so the
+// state doesn't flap during async transitions.
+func powerStateFromStatus(status, prev string) string {
+	switch status {
+	case "ACTIVE":
+		return "ON"
+	case "SHUTOFF", "STOPPED", "PAUSED", "SUSPENDED":
+		return "OFF"
+	default:
+		return prev
+	}
 }
 
 // parseInstanceData unmarshals the raw API response into readInstanceResponse,
@@ -235,10 +252,57 @@ func (r *instanceResource) Create(ctx context.Context, req resource.CreateReques
 		TargetStatus: []string{"ACTIVE"},
 		ErrorStatus:  []string{"ERROR"},
 	})
+	// Save the user-intended values BEFORE calling mapReadResponseToState
+	// (which infers power_state/locked from the just-built ACTIVE instance,
+	// clobbering any non-default values the user set in their HCL config).
+	wantPowerState := plan.PowerState
+	wantLocked := plan.Locked
+
 	if result != nil && result.Data != nil {
 		instance := result.Data.(*readInstanceResponse)
 		plan.Status = types.StringValue(instance.Status)
 		mapReadResponseToState(ctx, instance, &plan)
+	}
+
+	// Restore user intent so the action checks below see the configured values.
+	if !wantPowerState.IsNull() && !wantPowerState.IsUnknown() {
+		plan.PowerState = wantPowerState
+	}
+	if !wantLocked.IsNull() && !wantLocked.IsUnknown() {
+		plan.Locked = wantLocked
+	}
+
+	// Apply non-default lock state at create time.
+	// `locked` defaults to false; only call /lock if user explicitly set true.
+	if !plan.Locked.IsNull() && !plan.Locked.IsUnknown() && plan.Locked.ValueBool() {
+		lockPath := fmt.Sprintf("/cloud/instances/%s/lock", instanceID)
+		if _, err := r.client.PutWithParams(ctx, lockPath, nil, map[string]string{"value": "ON"}); err != nil {
+			resp.Diagnostics.AddError("Failed to apply initial lock state", err.Error())
+			return
+		}
+		plan.Locked = types.BoolValue(true)
+	}
+
+	// Apply non-default power_state at create time.
+	// Backend creates instances ACTIVE; only call /power if user wants OFF.
+	// Power transitions are async; wait for SHUTOFF so the next Refresh sees
+	// the converged state and Terraform's apply consistency check passes.
+	if !plan.PowerState.IsNull() && !plan.PowerState.IsUnknown() && plan.PowerState.ValueString() == "OFF" {
+		powerPath := fmt.Sprintf("/cloud/instances/%s/power", instanceID)
+		if _, err := r.client.PutWithParams(ctx, powerPath, nil, map[string]string{"value": "OFF"}); err != nil {
+			resp.Diagnostics.AddError("Failed to apply initial power state", err.Error())
+			return
+		}
+		off, err := r.waitForInstanceStatus(ctx, instanceID, []string{"SHUTOFF", "STOPPED", "PAUSED", "SUSPENDED"})
+		if err != nil {
+			resp.Diagnostics.AddError("Failed to power off instance", err.Error())
+			return
+		}
+		plan.PowerState = types.StringValue("OFF")
+		plan.Status = types.StringValue(off.Status)
+	} else {
+		// Always set explicit value so state isn't unknown after create.
+		plan.PowerState = types.StringValue("ON")
 	}
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
@@ -298,6 +362,65 @@ func (r *instanceResource) Update(ctx context.Context, req resource.UpdateReques
 
 	id := state.ID.ValueString()
 
+	// 1. Resize (flavor change) — separate endpoint with confirm step.
+	if !plan.FlavorID.Equal(state.FlavorID) {
+		if err := r.resizeInstance(ctx, id, plan.FlavorID.ValueString()); err != nil {
+			resp.Diagnostics.AddError("Failed to resize instance", err.Error())
+			return
+		}
+	}
+
+	// 2. Security groups change — PUT /cloud/instances/{id}/security-groups.
+	if !plan.SecurityGroupIDs.Equal(state.SecurityGroupIDs) {
+		var sgs []string
+		resp.Diagnostics.Append(plan.SecurityGroupIDs.ElementsAs(ctx, &sgs, false)...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+		sgPath := fmt.Sprintf("/cloud/instances/%s/security-groups", id)
+		if _, err := r.client.Put(ctx, sgPath, map[string][]string{"security_groups": sgs}); err != nil {
+			resp.Diagnostics.AddError("Failed to update instance security groups", err.Error())
+			return
+		}
+	}
+
+	// 3. Lock toggle — PUT /cloud/instances/{id}/lock?value=ON|OFF.
+	// Lock state must be applied BEFORE any operation that mutates the
+	// instance (e.g. power_state) since locked instances refuse other
+	// actions. Lock is fast and synchronous from the user's perspective.
+	if !plan.Locked.IsNull() && !plan.Locked.IsUnknown() && !plan.Locked.Equal(state.Locked) {
+		val := "OFF"
+		if plan.Locked.ValueBool() {
+			val = "ON"
+		}
+		lockPath := fmt.Sprintf("/cloud/instances/%s/lock", id)
+		if _, err := r.client.PutWithParams(ctx, lockPath, nil, map[string]string{"value": val}); err != nil {
+			resp.Diagnostics.AddError("Failed to update instance lock state", err.Error())
+			return
+		}
+	}
+
+	// 4. Power state — PUT /cloud/instances/{id}/power?value=ON|OFF.
+	// Async; wait for the instance to reach ACTIVE/SHUTOFF before returning
+	// so subsequent refreshes don't see stale status.
+	if !plan.PowerState.IsNull() && !plan.PowerState.IsUnknown() && !plan.PowerState.Equal(state.PowerState) {
+		powerPath := fmt.Sprintf("/cloud/instances/%s/power", id)
+		val := plan.PowerState.ValueString() // already validated as ON or OFF
+		if _, err := r.client.PutWithParams(ctx, powerPath, nil, map[string]string{"value": val}); err != nil {
+			resp.Diagnostics.AddError("Failed to update instance power state", err.Error())
+			return
+		}
+		targets := []string{"SHUTOFF", "STOPPED", "PAUSED", "SUSPENDED"}
+		if val == "ON" {
+			targets = []string{"ACTIVE"}
+		}
+		if _, err := r.waitForInstanceStatus(ctx, id, targets); err != nil {
+			resp.Diagnostics.AddError("Failed to update instance power state", err.Error())
+			return
+		}
+	}
+
+	// 5. Generic PUT for name + description.
 	body := updateInstanceRequest{
 		Name: plan.Name.ValueString(),
 	}
@@ -340,6 +463,121 @@ func (r *instanceResource) Update(ctx context.Context, req resource.UpdateReques
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
+// waitForInstanceStatus polls until the instance reports one of the target
+// statuses. Used after async actions (power, lock, resize) where the API call
+// returns immediately but the state machine takes a few seconds to converge.
+func (r *instanceResource) waitForInstanceStatus(ctx context.Context, instanceID string, targets []string) (*readInstanceResponse, error) {
+	result, err := wait.WaitForStatus(ctx, wait.WaitForStatusOpts{
+		Refresh: func(ctx context.Context) (*wait.StatusResult, error) {
+			apiResp, err := r.client.Get(ctx, fmt.Sprintf("/cloud/instances/%s", instanceID), nil)
+			if err != nil {
+				return nil, err
+			}
+			inst, perr := parseInstanceData(apiResp.Data)
+			if perr != nil {
+				return nil, perr
+			}
+			return &wait.StatusResult{Status: inst.Status, Data: inst}, nil
+		},
+		TargetStatus: targets,
+		ErrorStatus:  []string{"ERROR"},
+		Timeout:      3 * time.Minute,
+		PollInterval: 4 * time.Second,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if result == nil || result.Data == nil {
+		return nil, nil
+	}
+	return result.Data.(*readInstanceResponse), nil
+}
+
+// resizeInstance performs the two-step resize flow:
+//  1. PUT /cloud/instances/{id}/resize {flavor_id: ...} → instance enters
+//     RESIZE → VERIFY_RESIZE
+//  2. PUT /cloud/instances/{id}/resize-action?value=CONFIRM → instance returns
+//     to ACTIVE on the new flavor
+//
+// Note: backend support for resize requires the cluster to have multiple
+// compute hosts (Nova's same-host resize is disabled by default). On
+// single-host preprod clusters, the initiate call succeeds but the instance
+// bounces back to ACTIVE on the original flavor — there is nothing the
+// provider can do about that.
+func (r *instanceResource) resizeInstance(ctx context.Context, instanceID, newFlavorID string) error {
+	initiate := fmt.Sprintf("/cloud/instances/%s/resize", instanceID)
+	body := resizeRequest{FlavorID: newFlavorID}
+
+	if _, err := r.client.Put(ctx, initiate, body); err != nil {
+		return fmt.Errorf("initiate resize: %w", err)
+	}
+
+	// Wait for VERIFY_RESIZE; tolerate transient ACTIVE while the resize
+	// transitions through RESIZE state.
+	verifyResult, err := wait.WaitForStatus(ctx, wait.WaitForStatusOpts{
+		Refresh: func(ctx context.Context) (*wait.StatusResult, error) {
+			apiResp, err := r.client.Get(ctx, fmt.Sprintf("/cloud/instances/%s", instanceID), nil)
+			if err != nil {
+				return nil, err
+			}
+			inst, perr := parseInstanceData(apiResp.Data)
+			if perr != nil {
+				return nil, perr
+			}
+			return &wait.StatusResult{Status: inst.Status, Data: inst}, nil
+		},
+		TargetStatus: []string{"VERIFY_RESIZE", "ACTIVE"},
+		ErrorStatus:  []string{"ERROR"},
+		Timeout:      5 * time.Minute,
+		PollInterval: 5 * time.Second,
+	})
+	if err != nil {
+		return fmt.Errorf("wait for VERIFY_RESIZE: %w", err)
+	}
+
+	// If the instance went straight to ACTIVE, the resize was either auto-
+	// confirmed by the backend or rejected silently. Verify the flavor
+	// actually changed; if not, surface a clear error.
+	if verifyResult.Status == "ACTIVE" {
+		inst, _ := verifyResult.Data.(*readInstanceResponse)
+		if inst != nil && inst.FlavorID != "" && inst.FlavorID != newFlavorID {
+			return fmt.Errorf("instance returned to ACTIVE on the original flavor — backend did not perform the resize. This typically means the cluster does not have multiple compute hosts available for resize")
+		}
+		return nil // backend auto-confirmed; we're done
+	}
+
+	// Confirm the resize.
+	confirmPath := fmt.Sprintf("/cloud/instances/%s/resize-action", instanceID)
+	if _, err := r.client.PutWithParams(ctx, confirmPath, nil, map[string]string{"value": "CONFIRM"}); err != nil {
+		return fmt.Errorf("confirm resize: %w", err)
+	}
+
+	// Wait for ACTIVE on the new flavor.
+	_, err = wait.WaitForStatus(ctx, wait.WaitForStatusOpts{
+		Refresh: func(ctx context.Context) (*wait.StatusResult, error) {
+			apiResp, err := r.client.Get(ctx, fmt.Sprintf("/cloud/instances/%s", instanceID), nil)
+			if err != nil {
+				return nil, err
+			}
+			inst, perr := parseInstanceData(apiResp.Data)
+			if perr != nil {
+				return nil, perr
+			}
+			return &wait.StatusResult{Status: inst.Status, Data: inst}, nil
+		},
+		TargetStatus: []string{"ACTIVE"},
+		ErrorStatus:  []string{"ERROR"},
+		Timeout:      5 * time.Minute,
+		PollInterval: 5 * time.Second,
+	})
+	return err
+}
+
+// resizeRequest is the body for PUT /cloud/instances/{id}/resize.
+type resizeRequest struct {
+	FlavorID string `json:"flavor_id"`
+}
+
 // Delete removes the instance via DELETE /cloud/instances.
 func (r *instanceResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
 	var state instanceResourceModel
@@ -349,6 +587,26 @@ func (r *instanceResource) Delete(ctx context.Context, req resource.DeleteReques
 	}
 
 	id := state.ID.ValueString()
+
+	// Locked instances reject delete; unlock first.
+	if !state.Locked.IsNull() && state.Locked.ValueBool() {
+		lockPath := fmt.Sprintf("/cloud/instances/%s/lock", id)
+		if _, err := r.client.PutWithParams(ctx, lockPath, nil, map[string]string{"value": "OFF"}); err != nil {
+			resp.Diagnostics.AddError("Failed to unlock instance before delete", err.Error())
+			return
+		}
+	}
+
+	// Powered-off instances on this backend cannot detach ports cleanly,
+	// which causes the subsequent VPC/SG delete to fail with "ports still
+	// in use". Power the instance back on briefly before issuing delete.
+	if !state.PowerState.IsNull() && state.PowerState.ValueString() == "OFF" {
+		powerPath := fmt.Sprintf("/cloud/instances/%s/power", id)
+		if _, err := r.client.PutWithParams(ctx, powerPath, nil, map[string]string{"value": "ON"}); err == nil {
+			// Best effort wait for ACTIVE; ignore timeout — delete will retry.
+			_, _ = r.waitForInstanceStatus(ctx, id, []string{"ACTIVE"})
+		}
+	}
 
 	body := deleteInstanceRequest{
 		Key:    "id",
@@ -363,7 +621,7 @@ func (r *instanceResource) Delete(ctx context.Context, req resource.DeleteReques
 			_, err := r.client.Delete(ctx, "/cloud/instances", body)
 			return err
 		},
-		RetryableErrors: []string{"Cannot perform this action", "in current state"},
+		RetryableErrors: []string{"Cannot perform this action", "in current state", "PENDING_"},
 	})
 	if err != nil {
 		resp.Diagnostics.AddError(
@@ -477,6 +735,10 @@ func mapReadResponseToState(ctx context.Context, instance *readInstanceResponse,
 	state.ID = types.StringValue(instance.ID)
 	state.Name = types.StringValue(instance.Name)
 	state.Status = types.StringValue(instance.Status)
+
+	// power_state derived from instance status; locked mirrored from API.
+	state.PowerState = types.StringValue(powerStateFromStatus(instance.Status, state.PowerState.ValueString()))
+	state.Locked = types.BoolValue(instance.Locked)
 
 	// FlavorID from the nested flavor object.
 	if instance.FlavorID != "" {

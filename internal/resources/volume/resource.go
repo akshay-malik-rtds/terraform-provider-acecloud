@@ -95,6 +95,13 @@ type bootStatusRequest struct {
 	Bootable string `json:"bootable"`
 }
 
+// volumeExtendRequest is the body for POST /cloud/volumes/{id}/extend.
+// Note: the npc-api DTO declares `@Expose({ name: 'size' })`, so the JSON
+// field is `size`, NOT `new_size`.
+type volumeExtendRequest struct {
+	Size int64 `json:"size"`
+}
+
 // volumeDeleteRequest is the request body for volume deletion.
 // Matches CLI pattern: {"key": "id", "values": [...]}
 type volumeDeleteRequest struct {
@@ -215,6 +222,23 @@ func (r *volumeResource) Update(ctx context.Context, req resource.UpdateRequest,
 		return
 	}
 
+	// Save plan values before mapping — API response may differ from plan
+	plannedSize := plan.Size
+	plannedDescription := plan.Description
+
+	// 1. Resize (POST /cloud/volumes/{id}/extend) — separate endpoint with body
+	//    field `size`. The generic PUT endpoint silently drops `size` because
+	//    the update DTO uses `excludeExtraneousValues: true`.
+	if !plannedSize.Equal(state.Size) {
+		extendPath := fmt.Sprintf("%s/%s/extend", volumeBasePath, state.ID.ValueString())
+		extendBody := volumeExtendRequest{Size: plannedSize.ValueInt64()}
+		if _, err := r.client.Post(ctx, extendPath, extendBody); err != nil {
+			resp.Diagnostics.AddError("Failed to extend volume", err.Error())
+			return
+		}
+	}
+
+	// 2. Generic PUT for name + description (mutable scalars).
 	body := buildAPIRequest(&plan, ctx, &resp.Diagnostics)
 	if resp.Diagnostics.HasError() {
 		return
@@ -233,18 +257,14 @@ func (r *volumeResource) Update(ctx context.Context, req resource.UpdateRequest,
 		return
 	}
 
-	// Save plan values before mapping — API response may differ from plan
-	plannedSize := plan.Size
-	plannedDescription := plan.Description
-
 	mapAPIResponseToState(&plan, &updated, ctx, &resp.Diagnostics)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	// If the user requested a size change, keep the planned value.
-	// The async resize will eventually converge; the next Read will pick
-	// up the final size.
+	// Resize is async on the backend; the API may still report the old size
+	// for a few seconds. Keep the planned value so terraform doesn't show a
+	// spurious drift on the next refresh.
 	if !plannedSize.Equal(state.Size) {
 		plan.Size = plannedSize
 	}

@@ -19,10 +19,10 @@ Manages an Ace Cloud compute instance.
 
 - `boot_uuid` (String) UUID of the boot source (image, snapshot, or volume).
 - `delete_on_termination` (Boolean) Whether the boot volume is deleted when the instance is terminated.
-- `flavor_id` (String) UUID of the flavor (maps to backend field 'flavor').
+- `flavor_id` (String) UUID of the compute flavor. Changing this triggers an in-place resize via PUT /cloud/instances/{id}/resize and the resize confirmation step (no instance recreation needed). The instance briefly enters RESIZE/VERIFY_RESIZE states; the provider waits for the new flavor to be active before returning. Note: backend support for resize requires multiple compute hosts in the region; on single-host clusters this may fail.
 - `name` (String) Human-readable name for the instance (1-255 characters, alphanumeric and hyphens only).
 - `network_ids` (List of String) List of network UUIDs to attach (maps to backend field 'network'). Maximum 7 networks.
-- `security_group_ids` (List of String) List of security group UUIDs (maps to backend field 'security_group'). Maximum 7 groups.
+- `security_group_ids` (List of String) List of security group UUIDs (maps to backend field 'security_group'). Maximum 7 groups. Updated in-place via PUT /cloud/instances/{id}/security-groups when changed.
 - `source_type` (String) Type of the boot source. Must be one of: image, snapshot, volume.
 
 ### Optional
@@ -31,14 +31,16 @@ Manages an Ace Cloud compute instance.
 - `billing_type` (String) Billing type for the instance flavor. Valid: hourly, monthly, quarterly, half-yearly, yearly. Defaults to 'monthly'. Spot pricing is not exposed by this resource — it has a separate launch flow on the platform.
 - `description` (String) Optional description (0-255 characters). Only letters, numbers, underscores, hyphens, periods, commas, and spaces allowed.
 - `key_name` (String) Name of the SSH key pair (maps to backend field 'key').
+- `locked` (Boolean) Whether the instance is locked. A locked instance cannot be deleted, rebooted, or otherwise mutated until unlocked. Defaults to `false`. Toggling this calls the platform lock action.
 - `metadata` (Map of String) Arbitrary key/value metadata to attach to the instance.
+- `power_state` (String) Power state of the instance: `ON` (running) or `OFF` (stopped). Defaults to `ON`. Changing this value calls the platform power action; the instance is not destroyed.
 - `user_data` (String, Sensitive) Base64-encoded cloud-init user data script. May contain sensitive bootstrap data.
 - `volumes` (Block List) Boot and data volumes to create with the instance. (see [below for nested schema](#nestedblock--volumes))
 
 ### Read-Only
 
 - `id` (String) Unique identifier of the instance (assigned by the backend).
-- `status` (String) Current status of the instance (e.g. ACTIVE, BUILD).
+- `status` (String) Current status of the instance (e.g. `ACTIVE`, `BUILD`, `SHUTOFF`, `PAUSED`). Note: when `power_state="OFF"`, this backend may report the instance as `PAUSED` instead of `SHUTOFF`; both are treated as the off state by `power_state`.
 
 <a id="nestedblock--volumes"></a>
 ### Nested Schema for `volumes`

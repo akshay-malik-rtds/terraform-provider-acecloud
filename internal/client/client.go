@@ -108,8 +108,13 @@ func redactSensitiveFields(s string) string {
 // Note: Message can be a string or an object (for validation errors), so we
 // use json.RawMessage and extract a string afterwards.
 // Some endpoints return "messages" (plural) instead of "message".
+// The `error` field is heterogeneous across endpoints — it can be a boolean
+// (custom envelope), a string error class name like "Bad Request" (NestJS
+// default), or absent — so we keep it raw and interpret it in IsError.
 type APIResponse struct {
-	Error       bool            `json:"error"`
+	RawError    json.RawMessage `json:"error,omitempty"`
+	IsErrorBool bool            `json:"-"`
+	ErrorString string          `json:"-"`
 	Success     *bool           `json:"success,omitempty"` // Some endpoints use {success: bool} instead of {error: bool}
 	RawMessage  json.RawMessage `json:"message"`
 	RawMessages json.RawMessage `json:"messages"`
@@ -120,10 +125,28 @@ type APIResponse struct {
 	RawBody     json.RawMessage `json:"-"` // Full response body for non-standard envelopes (bare arrays, etc.)
 }
 
+// parseError interprets the heterogeneous `error` field. Boolean true or any
+// non-empty string class name signals an error.
+func (r *APIResponse) parseError() {
+	if len(r.RawError) == 0 {
+		return
+	}
+	var b bool
+	if err := json.Unmarshal(r.RawError, &b); err == nil {
+		r.IsErrorBool = b
+		return
+	}
+	var s string
+	if err := json.Unmarshal(r.RawError, &s); err == nil {
+		r.ErrorString = s
+		r.IsErrorBool = s != ""
+	}
+}
+
 // IsError returns true if the API response indicates an error.
-// Handles both {error: true} and {success: false} envelopes.
+// Handles both {error: true|"<class>"} and {success: false} envelopes.
 func (r *APIResponse) IsError() bool {
-	if r.Error {
+	if r.IsErrorBool {
 		return true
 	}
 	if r.Success != nil && !*r.Success {
@@ -351,6 +374,7 @@ func (c *Client) DoRequest(ctx context.Context, method, path string, body interf
 			var apiResp APIResponse
 			if err := json.Unmarshal(respBody, &apiResp); err == nil {
 				apiResp.parseMessage()
+				apiResp.parseError()
 				return nil, fmt.Errorf("authentication failed (401): %s", sanitizeErrorMessage(apiResp.Message))
 			}
 			return nil, fmt.Errorf("authentication failed (401)")
@@ -391,6 +415,7 @@ func (c *Client) DoRequest(ctx context.Context, method, path string, body interf
 		}
 		apiResp.parseStatus()
 		apiResp.parseMessage()
+		apiResp.parseError()
 
 		// If the API returned an error with a retryable status code, retry.
 		if apiResp.IsError() && retryableStatus(resp.StatusCode) {

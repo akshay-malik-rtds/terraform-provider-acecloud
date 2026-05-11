@@ -57,8 +57,12 @@ func (r *keyPairResource) Create(ctx context.Context, req resource.CreateRequest
 	body := map[string]interface{}{
 		"name": plan.Name.ValueString(),
 	}
+	// The npc-api keypair create DTO maps the JSON input field `key` to the
+	// internal `public_key` (via `@Expose({ name: 'key' })`). Sending
+	// `public_key` is silently dropped, which causes the backend to generate
+	// a fresh keypair instead of importing the user's public key.
 	if !plan.PublicKey.IsNull() && !plan.PublicKey.IsUnknown() {
-		body["public_key"] = plan.PublicKey.ValueString()
+		body["key"] = plan.PublicKey.ValueString()
 	}
 
 	apiResp, err := r.client.Post(ctx, apiPath, body)
@@ -112,13 +116,18 @@ func (r *keyPairResource) Read(ctx context.Context, req resource.ReadRequest, re
 	if v, ok := result["name"].(string); ok {
 		state.Name = types.StringValue(v)
 	}
-	// public_key: preserve user's configured value from state.
-	// The API typically does not return the public_key on GET requests (common security practice).
-	// If the API does return it, use that value; otherwise keep the existing state value.
-	if v, ok := result["public_key"].(string); ok && v != "" {
-		state.PublicKey = types.StringValue(v)
+	// public_key: the npc-api returns this field as `publicKey` (camelCase).
+	// Only mirror the API value into state when the user originally provided
+	// a public_key in their config. For generated keypairs, the backend
+	// returns "...Generated-by-Nova" which would otherwise drift against an
+	// empty config and force replacement on the next refresh.
+	if !state.PublicKey.IsNull() && !state.PublicKey.IsUnknown() {
+		if v, ok := result["publicKey"].(string); ok && v != "" {
+			state.PublicKey = types.StringValue(v)
+		} else if v, ok := result["public_key"].(string); ok && v != "" {
+			state.PublicKey = types.StringValue(v)
+		}
 	}
-	// If API didn't return public_key, state.PublicKey retains its previous value (from config/state).
 
 	if v, ok := result["fingerprint"].(string); ok {
 		state.Fingerprint = types.StringValue(v)

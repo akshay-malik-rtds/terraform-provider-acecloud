@@ -17,22 +17,23 @@ Manages an Ace Cloud Auto Scaling deployment. Deployments define scaling policie
 
 ### Required
 
-- `cool_down_time` (Number) Cool-down period in seconds between scale events (60-3600). Changing this forces recreation.
-- `desired_capacity` (Number) Desired number of instances (1-30). Changing this forces recreation.
+- `cool_down_time` (Number) Cool-down period in seconds between scale events (60-3600). Updated in-place.
+- `desired_capacity` (Number) Desired number of instances (1-30). Updated in-place; deployment scales toward the new value.
 - `is_integrated_with_lb` (Boolean) Whether to integrate with a load balancer.
-- `max_capacity` (Number) Maximum number of instances (1-30). Changing this forces recreation.
-- `max_threshold` (Number) Maximum threshold percentage for scale-out (40-95). Changing this forces recreation.
-- `min_threshold` (Number) Minimum threshold percentage for scale-in (30-90). Changing this forces recreation.
+- `max_capacity` (Number) Maximum number of instances (1-30). Updated in-place.
+- `max_threshold` (Number) Maximum threshold percentage for scale-out (40-95). Updated in-place.
+- `min_threshold` (Number) Minimum threshold percentage for scale-in (30-90). Updated in-place.
 - `name` (String) Name of the deployment (1-255 characters).
-- `nodes_scale_count` (Number) Number of nodes to add/remove per scale event (1-30). Changing this forces recreation.
-- `scaling_parameter` (String) Metric to monitor for scaling. Must be 'cpu' or 'ram'.
-- `template_id` (String) ID of the auto scaling template to use.
+- `nodes_scale_count` (Number) Number of nodes to add/remove per scale event (1-30). Updated in-place.
+- `scaling_parameter` (String) Metric to monitor for scaling. Must be `cpu` or `ram`. Updated in-place.
+- `template_id` (String) ID of the auto scaling template to use. Updated in-place via PUT /:id when changed (rolls instances over to the new template's flavor/image).
 - `user_email` (List of String) List of email addresses to notify on scaling events.
 
 ### Optional
 
-- `description` (String) Description of the deployment (3-255 characters).
+- `description` (String) Description of the deployment (3-255 characters). Updated in-place via PUT /:id when changed.
 - `lb_data` (Block, Optional) Load balancer configuration. Required when is_integrated_with_lb is true. (see [below for nested schema](#nestedblock--lb_data))
+- `template_version` (Number) Version of the auto scaling template to deploy. Defaults to `1`. Updated in-place via PUT /:id when changed.
 
 ### Read-Only
 
@@ -49,6 +50,7 @@ Manages an Ace Cloud Auto Scaling deployment. Deployments define scaling policie
 Optional:
 
 - `assign_public_ip` (Boolean) Whether to assign a public IP to the load balancer.
+- `enable_health_monitor` (Boolean) Whether to attach a health monitor to the load balancer pool. Defaults to `false`. Set to `true` and provide the `health_monitor` block to enable health checks.
 - `health_monitor` (Block, Optional) Health monitor configuration for the load balancer. (see [below for nested schema](#nestedblock--lb_data--health_monitor))
 - `is_existing_lb` (Boolean) Whether to use an existing load balancer.
 - `lb_id` (String) ID of an existing load balancer. Required when is_existing_lb is true.

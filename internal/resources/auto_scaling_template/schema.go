@@ -23,16 +23,19 @@ type autoScalingTemplateModel struct {
 	Name                types.String `tfsdk:"name"`
 	Type                types.String `tfsdk:"type"`
 	Description         types.String `tfsdk:"description"`
+	VolumeType          types.String `tfsdk:"volume_type"`
 	VolumeSize          types.Int64  `tfsdk:"volume_size"`
 	VolDelOnTermination types.Bool   `tfsdk:"vol_del_on_termination"`
 	FlavorID            types.String `tfsdk:"flavor_id"`
 	ImageID             types.String `tfsdk:"image_id"`
 	SnapshotID          types.String `tfsdk:"snapshot_id"`
+	SourceInstanceID    types.String `tfsdk:"source_instance_id"`
 	KeyName             types.String `tfsdk:"key_name"`
 	NetworkID           types.String `tfsdk:"network_id"`
 	SubnetID            types.String `tfsdk:"subnet_id"`
 	SecurityGroups      types.List   `tfsdk:"security_groups"`
 	IsInstanceSnapshot  types.Bool   `tfsdk:"is_instance_snapshot"`
+	UserData            types.String `tfsdk:"user_data"`
 	Status              types.String `tfsdk:"status"`
 	Region              types.String `tfsdk:"region"`
 	CreatedAt           types.String `tfsdk:"created_at"`
@@ -74,6 +77,10 @@ func autoScalingTemplateSchema() schema.Schema {
 					stringvalidator.RegexMatches(descriptionRegex, "can only contain letters, numbers, underscores, hyphens, periods, commas, and spaces"),
 				},
 			},
+			"volume_type": schema.StringAttribute{
+				Description: "Volume type for the root volume of scaled instances. Accepts short aliases: `ssd` (or `nvme`) → `NVMe based High IOPS Storage`, `hdd` → `HDD based Storage`. You can also use the full backend name directly.",
+				Required:    true,
+			},
 			"volume_size": schema.Int64Attribute{
 				Description: "Volume size in GB for each scaled instance.",
 				Required:    true,
@@ -91,7 +98,11 @@ func autoScalingTemplateSchema() schema.Schema {
 				Optional:    true,
 			},
 			"snapshot_id": schema.StringAttribute{
-				Description: "ID of the instance snapshot to boot from. Required when is_instance_snapshot is true.",
+				Description: "ID of the instance snapshot to boot from. Required when is_instance_snapshot is true and source_instance_id is not set.",
+				Optional:    true,
+			},
+			"source_instance_id": schema.StringAttribute{
+				Description: "UUID of an existing instance to use as the template source. Alternative to snapshot_id when is_instance_snapshot is true.",
 				Optional:    true,
 			},
 			"key_name": schema.StringAttribute{
@@ -114,6 +125,10 @@ func autoScalingTemplateSchema() schema.Schema {
 			"is_instance_snapshot": schema.BoolAttribute{
 				Description: "Whether to boot from an instance snapshot (true) or an image (false).",
 				Required:    true,
+			},
+			"user_data": schema.StringAttribute{
+				Description: "Base64-encoded cloud-init user data script to run on each scaled instance.",
+				Optional:    true,
 			},
 			"status": schema.StringAttribute{
 				Description: "Current status of the template.",

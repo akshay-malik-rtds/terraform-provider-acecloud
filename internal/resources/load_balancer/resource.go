@@ -355,20 +355,23 @@ func (r *loadBalancerResource) Delete(ctx context.Context, req resource.DeleteRe
 		return
 	}
 
-	// Use cascade delete to remove all child resources (listeners, pools, etc.)
+	// Plain delete — Terraform's dependency graph deletes child resources
+	// (listeners, pools, etc.) before the load balancer itself when they are
+	// managed by separate Terraform resources, so a cascade hint is not
+	// needed. Avoids backend builds that reject the cascade query parameter.
 	body := lbDeleteRequest{
 		Key:    "id",
 		Values: []string{state.ID.ValueString()},
 	}
 
-	// Retry on transient errors (LB may still be processing sub-resource deletions)
+	// Retry on transient errors (LB may still be processing sub-resource
+	// deletions when destroy runs, or report associated resources briefly).
 	err := wait.RetryOnConflict(ctx, wait.RetryOnConflictOpts{
 		Operation: func(ctx context.Context) error {
-			_, err := r.client.DeleteWithParams(ctx, apiPath, body, map[string]string{
-				"cascade": "true",
-			})
+			_, err := r.client.Delete(ctx, apiPath, body)
 			return err
 		},
+		RetryableErrors: []string{"associated resources", "Pending"},
 	})
 	if err != nil {
 		resp.Diagnostics.AddError("Failed to delete load balancer", err.Error())

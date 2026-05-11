@@ -30,6 +30,7 @@ type deploymentCreateRequest struct {
 	Name             string               `json:"name"`
 	Description      string               `json:"description,omitempty"`
 	TemplateID       string               `json:"template_id"`
+	TemplateVersion  int64                `json:"template_version"`
 	DesiredCapacity  int64                `json:"desired_capacity"`
 	MaxCapacity      int64                `json:"max_capacity"`
 	NodesScaleCount  int64                `json:"nodes_scale_count"`
@@ -43,16 +44,17 @@ type deploymentCreateRequest struct {
 }
 
 type lbDataCreateRequest struct {
-	LBName          string                      `json:"lb_name,omitempty"`
-	Tags            []string                    `json:"tags,omitempty"`
-	AssignPublicIP  bool                        `json:"assign_public_ip"`
-	IsExistingLB    bool                        `json:"is_existing_lb"`
-	LBID            string                      `json:"lb_id,omitempty"`
-	LBVipPortID     string                      `json:"lb_vip_port_id,omitempty"`
-	PublicNetworkID string                      `json:"public_network_id,omitempty"`
-	Listener        *listenerCreateRequest      `json:"listener,omitempty"`
-	Pool            *poolCreateRequest          `json:"pool,omitempty"`
-	HealthMonitor   *healthMonitorCreateRequest `json:"health_monitor,omitempty"`
+	LBName              string                      `json:"lb_name,omitempty"`
+	Tags                []string                    `json:"tags,omitempty"`
+	AssignPublicIP      bool                        `json:"assign_public_ip"`
+	IsExistingLB        bool                        `json:"is_existing_lb"`
+	LBID                string                      `json:"lb_id,omitempty"`
+	LBVipPortID         string                      `json:"lb_vip_port_id,omitempty"`
+	PublicNetworkID     string                      `json:"public_network_id,omitempty"`
+	Listener            *listenerCreateRequest      `json:"listener,omitempty"`
+	Pool                *poolCreateRequest          `json:"pool,omitempty"`
+	EnableHealthMonitor bool                        `json:"enable_health_monitor"`
+	HealthMonitor       *healthMonitorCreateRequest `json:"health_monitor,omitempty"`
 }
 
 type listenerCreateRequest struct {
@@ -124,9 +126,15 @@ func (r *autoScalingDeploymentResource) Configure(_ context.Context, req resourc
 }
 
 func buildCreateRequest(ctx context.Context, plan *autoScalingDeploymentModel) deploymentCreateRequest {
+	templateVersion := int64(1)
+	if !plan.TemplateVersion.IsNull() && !plan.TemplateVersion.IsUnknown() && plan.TemplateVersion.ValueInt64() > 0 {
+		templateVersion = plan.TemplateVersion.ValueInt64()
+	}
+
 	body := deploymentCreateRequest{
 		Name:             plan.Name.ValueString(),
 		TemplateID:       plan.TemplateID.ValueString(),
+		TemplateVersion:  templateVersion,
 		DesiredCapacity:  plan.DesiredCapacity.ValueInt64(),
 		MaxCapacity:      plan.MaxCapacity.ValueInt64(),
 		NodesScaleCount:  plan.NodesScaleCount.ValueInt64(),
@@ -153,8 +161,9 @@ func buildCreateRequest(ctx context.Context, plan *autoScalingDeploymentModel) d
 		plan.LBData.As(ctx, &lbModel, basetypes.ObjectAsOptions{})
 
 		lb := &lbDataCreateRequest{
-			AssignPublicIP: lbModel.AssignPublicIP.ValueBool(),
-			IsExistingLB:   lbModel.IsExistingLB.ValueBool(),
+			AssignPublicIP:      lbModel.AssignPublicIP.ValueBool(),
+			IsExistingLB:        lbModel.IsExistingLB.ValueBool(),
+			EnableHealthMonitor: lbModel.EnableHealthMonitor.ValueBool(),
 		}
 
 		if !lbModel.LBName.IsNull() && !lbModel.LBName.IsUnknown() {
@@ -220,6 +229,11 @@ func mapAPIResponseToState(model *autoScalingDeploymentModel, apiResp *deploymen
 	model.ID = types.StringValue(apiResp.ID)
 	model.Name = types.StringValue(apiResp.Name)
 	model.TemplateID = types.StringValue(apiResp.TemplateID)
+	// Preserve plan/state value for template_version since the API does not
+	// echo it back on read; default to 1 if unset.
+	if model.TemplateVersion.IsNull() || model.TemplateVersion.IsUnknown() {
+		model.TemplateVersion = types.Int64Value(1)
+	}
 	model.DesiredCapacity = types.Int64Value(apiResp.DesiredCapacity)
 	model.MaxCapacity = types.Int64Value(apiResp.MaxCapacity)
 	model.NodesScaleCount = types.Int64Value(apiResp.NodesScaleCount)
@@ -357,13 +371,72 @@ func (r *autoScalingDeploymentResource) Read(ctx context.Context, req resource.R
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
+// deploymentUpdateRequest matches npc-api UpdateDeploymentDto.
+type deploymentUpdateRequest struct {
+	Description      string   `json:"description,omitempty"`
+	TemplateID       string   `json:"template_id"`
+	TemplateVersion  int64    `json:"template_version"`
+	DesiredCapacity  int64    `json:"desired_capacity"`
+	MaxCapacity      int64    `json:"max_capacity"`
+	NodesScaleCount  int64    `json:"nodes_scale_count"`
+	ScalingParameter string   `json:"scaling_parameter"`
+	MinThreshold     int64    `json:"min_threshold"`
+	MaxThreshold     int64    `json:"max_threshold"`
+	CoolDownTime     int64    `json:"cool_down_time"`
+	UserEmail        []string `json:"user_email"`
+}
+
 func (r *autoScalingDeploymentResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	// No update endpoint — all fields have ForceNew, so Terraform will
-	// destroy + recreate automatically. This method should never be called.
-	resp.Diagnostics.AddError(
-		"Failed to update auto scaling deployment",
-		"Update is not supported. All fields require recreation.",
-	)
+	var plan autoScalingDeploymentModel
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	var state autoScalingDeploymentModel
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	id := state.ID.ValueString()
+
+	templateVersion := int64(1)
+	if !plan.TemplateVersion.IsNull() && !plan.TemplateVersion.IsUnknown() && plan.TemplateVersion.ValueInt64() > 0 {
+		templateVersion = plan.TemplateVersion.ValueInt64()
+	}
+
+	body := deploymentUpdateRequest{
+		TemplateID:       plan.TemplateID.ValueString(),
+		TemplateVersion:  templateVersion,
+		DesiredCapacity:  plan.DesiredCapacity.ValueInt64(),
+		MaxCapacity:      plan.MaxCapacity.ValueInt64(),
+		NodesScaleCount:  plan.NodesScaleCount.ValueInt64(),
+		ScalingParameter: plan.ScalingParameter.ValueString(),
+		MinThreshold:     plan.MinThreshold.ValueInt64(),
+		MaxThreshold:     plan.MaxThreshold.ValueInt64(),
+		CoolDownTime:     plan.CoolDownTime.ValueInt64(),
+	}
+	if !plan.Description.IsNull() && !plan.Description.IsUnknown() {
+		body.Description = plan.Description.ValueString()
+	}
+	if !plan.UserEmail.IsNull() && !plan.UserEmail.IsUnknown() {
+		var emails []string
+		resp.Diagnostics.Append(plan.UserEmail.ElementsAs(ctx, &emails, false)...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+		body.UserEmail = emails
+	}
+
+	path := fmt.Sprintf("%s/%s", basePath, id)
+	if _, err := r.client.Put(ctx, path, body); err != nil {
+		resp.Diagnostics.AddError("Failed to update auto scaling deployment", err.Error())
+		return
+	}
+
+	plan.ID = state.ID
+	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
 func (r *autoScalingDeploymentResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {

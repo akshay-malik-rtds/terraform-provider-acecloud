@@ -6,7 +6,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework-validators/int64validator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
@@ -24,6 +23,7 @@ type autoScalingDeploymentModel struct {
 	Name             types.String `tfsdk:"name"`
 	Description      types.String `tfsdk:"description"`
 	TemplateID       types.String `tfsdk:"template_id"`
+	TemplateVersion  types.Int64  `tfsdk:"template_version"`
 	DesiredCapacity  types.Int64  `tfsdk:"desired_capacity"`
 	MaxCapacity      types.Int64  `tfsdk:"max_capacity"`
 	NodesScaleCount  types.Int64  `tfsdk:"nodes_scale_count"`
@@ -47,13 +47,14 @@ type autoScalingDeploymentModel struct {
 
 // lbDataModel maps the lb_data nested block.
 type lbDataModel struct {
-	LBName          types.String `tfsdk:"lb_name"`
-	Tags            types.List   `tfsdk:"tags"`
-	AssignPublicIP  types.Bool   `tfsdk:"assign_public_ip"`
-	IsExistingLB    types.Bool   `tfsdk:"is_existing_lb"`
-	LBID            types.String `tfsdk:"lb_id"`
-	LBVipPortID     types.String `tfsdk:"lb_vip_port_id"`
-	PublicNetworkID types.String `tfsdk:"public_network_id"`
+	LBName              types.String `tfsdk:"lb_name"`
+	Tags                types.List   `tfsdk:"tags"`
+	AssignPublicIP      types.Bool   `tfsdk:"assign_public_ip"`
+	IsExistingLB        types.Bool   `tfsdk:"is_existing_lb"`
+	LBID                types.String `tfsdk:"lb_id"`
+	LBVipPortID         types.String `tfsdk:"lb_vip_port_id"`
+	PublicNetworkID     types.String `tfsdk:"public_network_id"`
+	EnableHealthMonitor types.Bool   `tfsdk:"enable_health_monitor"`
 
 	// Sub-blocks
 	Listener      types.Object `tfsdk:"listener"`
@@ -102,91 +103,72 @@ func autoScalingDeploymentSchema() schema.Schema {
 				},
 			},
 			"description": schema.StringAttribute{
-				Description: "Description of the deployment (3-255 characters).",
+				Description: "Description of the deployment (3-255 characters). Updated in-place via PUT /:id when changed.",
 				Optional:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.RequiresReplace(),
-				},
 				Validators: []validator.String{
 					stringvalidator.LengthBetween(3, 255),
 					stringvalidator.RegexMatches(descriptionRegex, "can only contain letters, numbers, underscores, hyphens, periods, commas, and spaces"),
 				},
 			},
 			"template_id": schema.StringAttribute{
-				Description: "ID of the auto scaling template to use.",
+				Description: "ID of the auto scaling template to use. Updated in-place via PUT /:id when changed (rolls instances over to the new template's flavor/image).",
 				Required:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.RequiresReplace(),
+			},
+			"template_version": schema.Int64Attribute{
+				Description: "Version of the auto scaling template to deploy. Defaults to `1`. Updated in-place via PUT /:id when changed.",
+				Optional:    true,
+				Computed:    true,
+				Validators: []validator.Int64{
+					int64validator.AtLeast(1),
 				},
 			},
 			"desired_capacity": schema.Int64Attribute{
-				Description: "Desired number of instances (1-30). Changing this forces recreation.",
+				Description: "Desired number of instances (1-30). Updated in-place; deployment scales toward the new value.",
 				Required:    true,
 				Validators: []validator.Int64{
 					int64validator.Between(1, 30),
-				},
-				PlanModifiers: []planmodifier.Int64{
-					int64planmodifier.RequiresReplace(),
 				},
 			},
 			"max_capacity": schema.Int64Attribute{
-				Description: "Maximum number of instances (1-30). Changing this forces recreation.",
+				Description: "Maximum number of instances (1-30). Updated in-place.",
 				Required:    true,
 				Validators: []validator.Int64{
 					int64validator.Between(1, 30),
-				},
-				PlanModifiers: []planmodifier.Int64{
-					int64planmodifier.RequiresReplace(),
 				},
 			},
 			"nodes_scale_count": schema.Int64Attribute{
-				Description: "Number of nodes to add/remove per scale event (1-30). Changing this forces recreation.",
+				Description: "Number of nodes to add/remove per scale event (1-30). Updated in-place.",
 				Required:    true,
 				Validators: []validator.Int64{
 					int64validator.Between(1, 30),
 				},
-				PlanModifiers: []planmodifier.Int64{
-					int64planmodifier.RequiresReplace(),
-				},
 			},
 			"scaling_parameter": schema.StringAttribute{
-				Description: "Metric to monitor for scaling. Must be 'cpu' or 'ram'.",
+				Description: "Metric to monitor for scaling. Must be `cpu` or `ram`. Updated in-place.",
 				Required:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.RequiresReplace(),
-				},
 				Validators: []validator.String{
 					stringvalidator.OneOf("cpu", "ram"),
 				},
 			},
 			"min_threshold": schema.Int64Attribute{
-				Description: "Minimum threshold percentage for scale-in (30-90). Changing this forces recreation.",
+				Description: "Minimum threshold percentage for scale-in (30-90). Updated in-place.",
 				Required:    true,
 				Validators: []validator.Int64{
 					int64validator.Between(30, 90),
 				},
-				PlanModifiers: []planmodifier.Int64{
-					int64planmodifier.RequiresReplace(),
-				},
 			},
 			"max_threshold": schema.Int64Attribute{
-				Description: "Maximum threshold percentage for scale-out (40-95). Changing this forces recreation.",
+				Description: "Maximum threshold percentage for scale-out (40-95). Updated in-place.",
 				Required:    true,
 				Validators: []validator.Int64{
 					int64validator.Between(40, 95),
 				},
-				PlanModifiers: []planmodifier.Int64{
-					int64planmodifier.RequiresReplace(),
-				},
 			},
 			"cool_down_time": schema.Int64Attribute{
-				Description: "Cool-down period in seconds between scale events (60-3600). Changing this forces recreation.",
+				Description: "Cool-down period in seconds between scale events (60-3600). Updated in-place.",
 				Required:    true,
 				Validators: []validator.Int64{
 					int64validator.Between(60, 3600),
-				},
-				PlanModifiers: []planmodifier.Int64{
-					int64planmodifier.RequiresReplace(),
 				},
 			},
 			"user_email": schema.ListAttribute{
@@ -252,6 +234,11 @@ func autoScalingDeploymentSchema() schema.Schema {
 					"public_network_id": schema.StringAttribute{
 						Description: "Public network ID for floating IP. Required when assign_public_ip is true.",
 						Optional:    true,
+					},
+					"enable_health_monitor": schema.BoolAttribute{
+						Description: "Whether to attach a health monitor to the load balancer pool. Defaults to `false`. Set to `true` and provide the `health_monitor` block to enable health checks.",
+						Optional:    true,
+						Computed:    true,
 					},
 				},
 				Blocks: map[string]schema.Block{

@@ -47,7 +47,7 @@ func (r *floatingIPResource) Schema(_ context.Context, _ resource.SchemaRequest,
 				},
 			},
 			"description": schema.StringAttribute{
-				Description: "Description of the floating IP. Changing this forces recreation.",
+				Description: "Description of the floating IP. Backend does not provide a FIP update endpoint; changing this forces recreation. (FIPs are inexpensive to recreate.)",
 				Optional:    true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),

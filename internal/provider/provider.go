@@ -30,6 +30,7 @@ import (
 	"github.com/akshay-malik-rtds/terraform-provider-acecloud/internal/resources/snapshot"
 	"github.com/akshay-malik-rtds/terraform-provider-acecloud/internal/resources/subnet"
 	"github.com/akshay-malik-rtds/terraform-provider-acecloud/internal/resources/volume"
+	"github.com/akshay-malik-rtds/terraform-provider-acecloud/internal/resources/volume_attachment"
 	"github.com/akshay-malik-rtds/terraform-provider-acecloud/internal/resources/volume_backup"
 	"github.com/akshay-malik-rtds/terraform-provider-acecloud/internal/resources/vpc"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
@@ -313,6 +314,7 @@ func (p *AceCloudProvider) Resources(_ context.Context) []func() resource.Resour
 		router.NewResource,
 		router_interface.NewResource,
 		snapshot.NewResource,
+		volume_attachment.NewResource,
 		volume_backup.NewResource,
 		load_balancer.NewResource,
 		lb_listener.NewResource,

@@ -26,13 +26,16 @@ Manages an Ace Cloud Auto Scaling template. Templates define the instance config
 - `type` (String) Operating system type. Must be 'linux' or 'windows'.
 - `vol_del_on_termination` (Boolean) Whether the volume is deleted when the instance is terminated.
 - `volume_size` (Number) Volume size in GB for each scaled instance.
+- `volume_type` (String) Volume type for the root volume of scaled instances. Accepts short aliases: `ssd` (or `nvme`) → `NVMe based High IOPS Storage`, `hdd` → `HDD based Storage`. You can also use the full backend name directly.
 
 ### Optional
 
 - `description` (String) Description of the template (3-255 characters).
 - `image_id` (String) ID of the image to boot from. Required when is_instance_snapshot is false.
 - `key_name` (String) Name of the SSH key pair to inject.
-- `snapshot_id` (String) ID of the instance snapshot to boot from. Required when is_instance_snapshot is true.
+- `snapshot_id` (String) ID of the instance snapshot to boot from. Required when is_instance_snapshot is true and source_instance_id is not set.
+- `source_instance_id` (String) UUID of an existing instance to use as the template source. Alternative to snapshot_id when is_instance_snapshot is true.
+- `user_data` (String) Base64-encoded cloud-init user data script to run on each scaled instance.
 
 ### Read-Only
 
