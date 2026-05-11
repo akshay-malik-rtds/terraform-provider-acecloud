@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AceCloud Terraform Provider — Roadmap</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --fg: #1f2933;
+    --muted: #52606d;
+    --rule: #e4e7eb;
+    --accent: #2563eb;
+    --accent-soft: #eff6ff;
+    --code-bg: #f1f5f9;
+    --legend-shipped: #16a34a;
+    --legend-progress: #d97706;
+    --legend-planned: #2563eb;
+    --legend-consider: #9333ea;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f172a;
+      --fg: #e2e8f0;
+      --muted: #94a3b8;
+      --rule: #334155;
+      --accent: #60a5fa;
+      --accent-soft: #1e293b;
+      --code-bg: #1e293b;
+      --legend-shipped: #4ade80;
+      --legend-progress: #fbbf24;
+      --legend-planned: #60a5fa;
+      --legend-consider: #c084fc;
+    }
+  }
+  html, body { background: var(--bg); color: var(--fg); }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 2.5rem 1.5rem 4rem;
+    line-height: 1.6;
+    font-size: 16px;
+  }
+  h1, h2, h3 {
+    color: var(--fg);
+    line-height: 1.25;
+    margin-top: 2.25rem;
+  }
+  h1 { font-size: 2rem; margin-top: 0; border-bottom: 1px solid var(--rule); padding-bottom: 0.5rem; }
+  h2 { font-size: 1.4rem; border-bottom: 1px solid var(--rule); padding-bottom: 0.35rem; }
+  h3 { font-size: 1.1rem; color: var(--muted); }
+  p { margin: 0.75rem 0; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  ul { padding-left: 1.4rem; }
+  li { margin: 0.35rem 0; }
+  code {
+    background: var(--code-bg);
+    padding: 0.1em 0.4em;
+    border-radius: 4px;
+    font-size: 0.92em;
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+  }
+  strong { color: var(--fg); }
+  blockquote {
+    border-left: 4px solid var(--accent);
+    background: var(--accent-soft);
+    margin: 1rem 0;
+    padding: 0.6rem 1rem;
+    border-radius: 0 4px 4px 0;
+  }
+  hr {
+    border: none;
+    border-top: 1px solid var(--rule);
+    margin: 2rem 0;
+  }
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.25rem;
+    margin: 0.5rem 0;
+    font-size: 0.95rem;
+    color: var(--muted);
+  }
+  .legend span { white-space: nowrap; }
+  .status {
+    display: inline-block;
+    min-width: 1.1em;
+    text-align: center;
+    margin-right: 0.25em;
+  }
+  .shipped  { color: var(--legend-shipped); }
+  .progress { color: var(--legend-progress); }
+  .planned  { color: var(--legend-planned); }
+  .consider { color: var(--legend-consider); }
+  .meta {
+    color: var(--muted);
+    font-size: 0.9rem;
+    font-style: italic;
+    text-align: right;
+    margin-top: 3rem;
+  }
+  .version-badge {
+    display: inline-block;
+    padding: 0.05rem 0.5rem;
+    background: var(--accent-soft);
+    color: var(--accent);
+    border-radius: 4px;
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.95em;
+    margin-right: 0.25rem;
+  }
+  .theme {
+    background: var(--accent-soft);
+    padding: 0.6rem 1rem;
+    border-radius: 4px;
+    margin: 0.75rem 0;
+  }
+  .theme strong { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<h1>Roadmap</h1>
+
+<p>A rough, non-binding view of where this provider is going. Items are grouped by the <strong>target release</strong> they are most likely to ship in, but specific scope can shift based on feedback and AceCloud backend availability.</p>
+
+<p>If something here matters to you, please open a GitHub issue and link it to the relevant section &mdash; that&rsquo;s the most reliable way to influence sequencing.</p>
+
+<blockquote>
+<strong>Status legend:</strong>
+<div class="legend">
+  <span><span class="status shipped">&#9989;</span> shipped</span>
+  <span><span class="status progress">&#128679;</span> in progress</span>
+  <span><span class="status planned">&#128203;</span> planned</span>
+  <span><span class="status consider">&#128161;</span> considering</span>
+</div>
+</blockquote>
+
+<hr>
+
+<h2>Versioning posture</h2>
+
+<p>This provider follows <a href="https://semver.org/">Semantic Versioning</a>. While we&rsquo;re on <strong>v0.x.y</strong>:</p>
+
+<ul>
+  <li>Minor bumps (0.1 &rarr; 0.2) may contain breaking changes; check <code>CHANGELOG.md</code> and the upcoming <code>UPGRADING.md</code> before bumping</li>
+  <li>Patch bumps (0.1.0 &rarr; 0.1.1) are strictly backwards-compatible bug fixes</li>
+  <li>Resources and attributes can be deprecated and removed in a single minor cycle</li>
+</ul>
+
+<p>Once <strong>v1.0.0</strong> ships, we adopt the standard SemVer contract: breaking changes only at major bumps, with a documented deprecation cycle of at least one minor before removal.</p>
+
+<hr>
+
+<h2><span class="version-badge">v0.1.x</span> Patches (rolling)</h2>
+
+<p><span class="status shipped">&#9989;</span> <strong>v0.1.0</strong> &mdash; Initial preview release (2026-04-30). Documented in <code>CHANGELOG.md</code>.</p>
+
+<p><span class="status planned">&#128203;</span> <strong>v0.1.1</strong> &mdash; bug-fix-only patch covering work since v0.1.0:</p>
+
+<ul>
+  <li>Error envelope handling for the NestJS default error shape (<code>{error: "Bad Request"}</code> as string)</li>
+  <li>Error-summary phrasing standardised to <code>"Failed to &lt;verb&gt; &lt;resource&gt;"</code> everywhere</li>
+  <li>Internal-tech leakage scrub in user-facing docs</li>
+</ul>
+
+<p>This will ship as 0.1.1 from <code>main</code> once the changes above are tagged.</p>
+
+<hr>
+
+<h2><span class="version-badge">v0.2.0</span> Lifecycle parity + LB unblock</h2>
+
+<div class="theme"><span class="status planned">&#128203;</span> <strong>Target theme:</strong> make every IaaS resource behave the way Terraform users expect &mdash; in-place updates where the API supports them, clean lifecycle on destroy, no spurious replacement plans.</div>
+
+<h3>Already landed on <code>main</code>, will ship as part of v0.2.0</h3>
+
+<ul>
+  <li><span class="status shipped">&#9989;</span> <code>acecloud_volume_attachment</code> (new resource)</li>
+  <li><span class="status shipped">&#9989;</span> <code>acecloud_instance.power_state</code> and <code>acecloud_instance.locked</code> attributes</li>
+  <li><span class="status shipped">&#9989;</span> <code>acecloud_instance.flavor_id</code> in-place resize</li>
+  <li><span class="status shipped">&#9989;</span> <code>acecloud_instance.security_group_ids</code> in-place update</li>
+  <li><span class="status shipped">&#9989;</span> <code>acecloud_auto_scaling_deployment</code> in-place update for 10 mutable fields</li>
+  <li><span class="status shipped">&#9989;</span> <code>acecloud_volume</code> resize fix (use <code>POST /extend</code>)</li>
+  <li><span class="status shipped">&#9989;</span> Keypair import field-name fix and Read drift fix</li>
+  <li><span class="status shipped">&#9989;</span> Instance Delete: unlock + power-on before delete</li>
+</ul>
+
+<h3>Still needed before v0.2.0 ships</h3>
+
+<ul>
+  <li><span class="status progress">&#128679;</span> Live E2E verification of <code>acecloud_auto_scaling_deployment</code> Update (gated by <code>ACECLOUD_RUN_AS_DEPLOYMENT_ACC=1</code>, ~30 min per cycle)</li>
+  <li><span class="status progress">&#128679;</span> Live verification of <code>acecloud_instance.flavor_id</code> resize on a multi-host AceCloud cluster (preprod is single-host so the backend silently no-ops the resize)</li>
+  <li><span class="status progress">&#128679;</span> Backend fix for the LB pool create worker on preprod (escalated to platform team &mdash; see <code>docs/USAGE.md</code> Troubleshooting). The provider itself is correct; pool create succeeds on dev4 with the same payload.</li>
+  <li><span class="status planned">&#128203;</span> <code>UPGRADING.md</code> covering migration from 0.1.x to 0.2.x</li>
+</ul>
+
+<h3>Possible additional scope if backend support lands in time</h3>
+
+<ul>
+  <li><span class="status consider">&#128161;</span> <code>acecloud_volume.bootable</code> toggle (currently inferred from <code>boot</code> flag in <code>volumes</code> block)</li>
+  <li><span class="status consider">&#128161;</span> <code>acecloud_instance</code> import support</li>
+  <li><span class="status consider">&#128161;</span> More data sources: snapshots, volumes, load balancers, listeners, pools</li>
+</ul>
+
+<hr>
+
+<h2><span class="version-badge">v0.3.0</span> CaaS + Container Registry + Kubernetes (beta)</h2>
+
+<div class="theme"><span class="status planned">&#128203;</span> <strong>Target theme:</strong> restore the deferred container-platform resources from the <code>feature/beta-resources</code> branch. Mark them clearly as Beta in docs until they&rsquo;ve had a customer-facing soak period.</div>
+
+<h3>Resources to restore</h3>
+
+<p>(Originally built in earlier sessions, removed from the current release branch on 2026-04-23 pending backend stabilisation.)</p>
+
+<ul>
+  <li><code>acecloud_caas_secret</code></li>
+  <li><code>acecloud_caas_deployment</code></li>
+  <li><code>acecloud_registry_project</code></li>
+  <li><code>acecloud_registry_replication_rule</code></li>
+  <li><code>acecloud_k8s_cluster</code></li>
+  <li><code>acecloud_k8s_node_group</code></li>
+</ul>
+
+<h3>Prerequisites (mostly backend work, tracked separately)</h3>
+
+<ul>
+  <li><span class="status progress">&#128679;</span> CaaS deployment endpoint stabilised (was returning <code>OutOfSync</code> on dev4)</li>
+  <li><span class="status progress">&#128679;</span> Container registry endpoint functional on customer-facing environment</li>
+  <li><span class="status progress">&#128679;</span> K8s cluster long-provisioning behavior (25-35 min creates) handled gracefully &mdash; already in place via <code>PollForResource</code> with 40-min timeout</li>
+</ul>
+
+<h3>Each beta resource will ship with</h3>
+
+<ul>
+  <li>A Beta banner in its registry-facing documentation page</li>
+  <li>An explicit note in <code>CHANGELOG.md</code> that beta resources may change in non-major bumps</li>
+  <li>A separate <code>tests/live/</code> acceptance test gated behind an opt-in env var</li>
+</ul>
+
+<hr>
+
+<h2><span class="version-badge">v0.4.0</span> Drift detection + import support</h2>
+
+<div class="theme"><span class="status planned">&#128203;</span> <strong>Target theme:</strong> tighten the loop between Terraform state and live backend state.</div>
+
+<ul>
+  <li><span class="status planned">&#128203;</span> <code>terraform import</code> support for every resource that has a stable identity</li>
+  <li><span class="status planned">&#128203;</span> Improved drift detection for <code>acecloud_security_group.rules</code> (currently the provider preserves user-configured rules without reconciling against backend transformations like <code>tcp/22 &rarr; SSH</code>)</li>
+  <li><span class="status planned">&#128203;</span> Read-only data sources for: snapshots, volumes, load balancers, listeners, pools, health monitors, auto-scaling templates, auto-scaling deployments, keypairs, floating IPs</li>
+  <li><span class="status consider">&#128161;</span> Optional verbose-diff mode for <code>terraform plan</code> that shows backend-computed defaults</li>
+</ul>
+
+<hr>
+
+<h2><span class="version-badge">v0.5.0</span> Namespace migration to official AceCloud org</h2>
+
+<div class="theme"><span class="status planned">&#128203;</span> <strong>Target theme:</strong> publish under <code>acecloud/acecloud</code> on the Terraform Registry instead of the personal namespace.</div>
+
+<ul>
+  <li><span class="status planned">&#128203;</span> Claim the <code>acecloud</code> publisher account on registry.terraform.io</li>
+  <li><span class="status planned">&#128203;</span> Set up the official-org GitHub repo with appropriate access controls</li>
+  <li><span class="status planned">&#128203;</span> Publish identical <code>v0.5.0</code> artifacts under both namespaces for one minor cycle</li>
+  <li><span class="status planned">&#128203;</span> Update README, docs, and examples to reference the new source</li>
+  <li><span class="status planned">&#128203;</span> Add a clear migration note to <code>UPGRADING.md</code> &mdash; users will need to change their <code>required_providers</code> <code>source</code> line</li>
+</ul>
+
+<p>Old namespace will continue to receive patches for one minor cycle (<code>v0.5.x</code>) after the move, then be archived with a pointer to the new location.</p>
+
+<hr>
+
+<h2><span class="version-badge">v0.6.x &ndash; v0.9.x</span> Stabilisation</h2>
+
+<div class="theme"><span class="status planned">&#128203;</span> <strong>Target theme:</strong> stop adding net-new resources. Polish what&rsquo;s there. Run a community feedback window for any remaining breaking changes that should land before v1.0.</div>
+
+<h3>Expected work</h3>
+
+<ul>
+  <li>Remove anything that was deprecated during v0.2-v0.4</li>
+  <li>Tighten validation rules to catch invalid configs at plan-time where possible</li>
+  <li>Improve error messages with actionable next steps</li>
+  <li>Add <code>validate</code> rules that catch cross-resource consistency issues at plan time</li>
+  <li>RFC window: file 1-2 GitHub Discussions for any remaining breaking changes; close the window 30 days before the v1.0 cut</li>
+</ul>
+
+<hr>
+
+<h2><span class="version-badge">v1.0.0</span> GA, stability contract</h2>
+
+<div class="theme"><span class="status planned">&#128203;</span> <strong>Target theme:</strong> first release with a public SemVer stability guarantee.</div>
+
+<h3>Requirements before tagging v1.0.0</h3>
+
+<ul>
+  <li><span class="status shipped">&#9989;</span> Two consecutive minor releases with no breaking changes to existing resources</li>
+  <li><span class="status planned">&#128203;</span> 100% of resources have at least one live acceptance test that passes on the production backend</li>
+  <li><span class="status planned">&#128203;</span> Every resource has an <code>examples/</code> folder with a working configuration</li>
+  <li><span class="status planned">&#128203;</span> <code>UPGRADING.md</code> documents the full path from each prior 0.x minor to 1.0</li>
+  <li><span class="status planned">&#128203;</span> Security policy updated to cover the previous major in parallel</li>
+  <li><span class="status planned">&#128203;</span> Customer announcement and recommended-upgrade window</li>
+</ul>
+
+<h3>After v1.0</h3>
+
+<ul>
+  <li>Breaking changes only at major bumps</li>
+  <li>Deprecation requires at least one full minor cycle with a plan-time warning before removal</li>
+  <li>Each deprecation documented in <code>UPGRADING.md</code> with a recommended migration</li>
+</ul>
+
+<hr>
+
+<h2>Not currently planned</h2>
+
+<p>To set expectations, here&rsquo;s what we&rsquo;re <strong>not</strong> planning to ship in the visible roadmap:</p>
+
+<ul>
+  <li>A Pulumi or CDKTF distribution. The HashiCorp tooling generates these automatically from the provider; we don&rsquo;t maintain separate codebases.</li>
+  <li>A &ldquo;raw API&rdquo; passthrough resource. If something is missing, file an issue &mdash; we&rsquo;d rather build a typed resource than an escape hatch.</li>
+  <li>A separate <code>acecloud_spot_instance</code> resource. Spot pricing is exposed by the AceCloud platform&rsquo;s instance launch flow; we&rsquo;d need a clear product-side definition of where spot intersects with <code>acecloud_instance</code> before adding it.</li>
+  <li>Provider-side cost estimation. Terraform Cloud and Spacelift both surface cost via their own integrations against the registry; we&rsquo;ll lean on those rather than building our own.</li>
+</ul>
+
+<p>If any of these would unblock you, please open an issue &mdash; roadmaps are revisable.</p>
+
+<hr>
+
+<h2>How to influence the roadmap</h2>
+
+<ul>
+  <li><strong>Open a GitHub issue</strong> describing the use case and link to any backend documentation</li>
+  <li><strong>React with &#128077;</strong> to existing issues to signal interest &mdash; we use reaction counts for sequencing</li>
+  <li><strong>Submit a PR</strong> for small additions (a new data source, an attribute on an existing resource); larger changes should start with an issue for design alignment</li>
+  <li>For AceCloud customers: reach out via your usual support channel and reference the roadmap item</li>
+</ul>
+
+<p class="meta">Last updated: 2026-05-11.</p>
+
+</body>
+</html>
