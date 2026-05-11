@@ -1,0 +1,57 @@
+# ─── Ace Cloud Provider Configuration ─────────────────────────
+#
+# Copy this file to terraform.tfvars and fill in your values:
+#   cp terraform.tfvars.example terraform.tfvars
+#
+# The provider supports 4 authentication methods (tried in order):
+#   1. API key (api_key_id + api_key_secret) — recommended for automation
+#   2. Static JWT token (api_token)
+#   3. Email/password login
+#   4. ace-cli config fallback (~/.ace/config.json)
+#
+# ─── Method 1: API Key (recommended for automation / CI) ─────
+# Long-lived credentials. Create with: ace api-key create --service-name <name>
+# api_key_service_name is REQUIRED and must match the service name used at key creation.
+#
+# api_url              = "https://customer.acecloud.ai/api/v1"
+# api_key_id           = "your-api-key-id"
+# api_key_secret       = "your-api-key-secret"
+# api_key_service_name = "terraform-prod"      # required, must match key's serviceName
+# region               = "mumbai"
+# project_id           = "your-acecloud-project-uuid"
+#
+# ─── Method 2: Static JWT Token ──────────────────────────────
+# Short-lived (24h). For longer automation, prefer API keys instead.
+#
+# api_url   = "https://customer.acecloud.ai/api/v1"
+# api_token = "your-jwt-token"
+# region    = "mumbai"
+# project_id = "your-acecloud-project-uuid"
+#
+# ─── Method 3: Email/Password Login ──────────────────────────
+# (Not supported for 2FA-enabled accounts)
+#
+# api_url  = "https://customer.acecloud.ai/api/v1"
+# email    = "your-email@example.com"
+# password = "your-password"
+# region   = "mumbai"           # optional: auto-selected from account
+# project_id = "your-project"   # optional: auto-selected from account
+#
+# ─── Method 4: ace-cli Config ────────────────────────────────
+# Just run 'ace auth login' or 'ace auth login-api-key' first, then use:
+#
+# api_url = "https://customer.acecloud.ai/api/v1"
+# (credentials, region, project_id read from ~/.ace/config.json)
+#
+# ─── Environment Variables ───────────────────────────────────
+# All values can also be set via environment variables:
+#   ACECLOUD_API_URL, ACECLOUD_API_TOKEN, ACECLOUD_REGION, ACECLOUD_PROJECT_ID,
+#   ACECLOUD_API_KEY_ID, ACECLOUD_API_KEY_SECRET, ACECLOUD_API_KEY_SERVICE_NAME,
+#   ACECLOUD_EMAIL, ACECLOUD_PASSWORD
+#
+# ─── Fill in your values below ───────────────────────────────
+
+api_url    = "https://customer.acecloud.ai/api/v1"
+api_token  = "your-jwt-token-here"
+region     = "mumbai"
+project_id = "your-acecloud-project-uuid"
