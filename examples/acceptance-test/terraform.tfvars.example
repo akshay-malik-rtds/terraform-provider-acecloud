@@ -1,0 +1,42 @@
+# ─── Ace Cloud Provider Configuration ─────────────────────────
+#
+# Copy this file to terraform.tfvars and fill in your values:
+#   cp terraform.tfvars.example terraform.tfvars
+#
+# The provider supports two authentication methods (tried in order):
+#   1. API key (api_key_id + api_key_secret + api_key_service_name) — recommended
+#   2. ace-cli config fallback (~/.ace/config.json)
+#
+# ─── Method 1: API Key (recommended) ─────────────────────────
+# Long-lived credentials. Create with: ace api-key create --service-name <name>
+# api_key_service_name is REQUIRED and must match the service name used at key creation.
+#
+# api_url              = "https://customer.acecloud.ai/api/v1"
+# api_key_id           = "your-api-key-id"
+# api_key_secret       = "your-api-key-secret"
+# api_key_service_name = "terraform"           # required, must match key's serviceName
+# region               = "mumbai"
+# project_id           = "your-acecloud-project-uuid"
+#
+# ─── Method 2: ace-cli Config ────────────────────────────────
+# Just run 'ace auth login-api-key --service-name <name>' first, then use:
+#
+# api_url    = "https://customer.acecloud.ai/api/v1"
+# region     = "mumbai"
+# project_id = "your-acecloud-project-uuid"
+# (credentials read from ~/.ace/config.json)
+#
+# ─── Environment Variables ───────────────────────────────────
+# All values can also be set via environment variables:
+#   ACECLOUD_API_URL, ACECLOUD_API_KEY_ID, ACECLOUD_API_KEY_SECRET,
+#   ACECLOUD_API_KEY_SERVICE_NAME, ACECLOUD_REGION, ACECLOUD_PROJECT_ID,
+#   ACECLOUD_CONFIG_PATH
+#
+# ─── Fill in your values below ───────────────────────────────
+
+api_url              = "https://customer.acecloud.ai/api/v1"
+api_key_id           = "your-api-key-id"
+api_key_secret       = "your-api-key-secret"
+api_key_service_name = "terraform"
+region               = "mumbai"
+project_id           = "your-acecloud-project-uuid"
