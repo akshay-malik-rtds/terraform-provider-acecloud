@@ -1,0 +1,41 @@
+# Binaries
+terraform-provider-acecloud
+terraform-provider-acecloud_*
+*.exe
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+.terraform.lock.hcl
+crash.log
+
+# Go
+vendor/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Debug logs
+/tmp/
+acecloud_debug.log
+
+# Python
+__pycache__/
+*.pyc
+*.pptx
+*.py
+
+# Internal tests / scaffolding (not published to registry)
+tests/
+
+# Internal Go unit tests (not published to registry — kept for local CI only)
+*_test.go
