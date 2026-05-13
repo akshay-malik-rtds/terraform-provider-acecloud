@@ -1,0 +1,50 @@
+---
+page_title: "acecloud Provider"
+description: |-
+  {{ .Description | trimspace }}
+---
+
+# AceCloud Provider
+
+The AceCloud Terraform Provider lets you manage AceCloud infrastructure as code — compute instances, block storage, networking, load balancing, auto scaling, and IAM API keys.
+
+## Example Usage
+
+{{ tffile "examples/provider/main.tf" }}
+
+## Authentication
+
+Authenticate with an API key. Set `api_key_id`, `api_key_secret`, and `api_key_service_name` in the provider block, or use the matching environment variables `ACECLOUD_API_KEY_ID`, `ACECLOUD_API_KEY_SECRET`, and `ACECLOUD_API_KEY_SERVICE_NAME`. Create a key from the AceCloud console.
+
+API keys are long-lived credentials scoped to a service identity. They are the recommended primitive for infrastructure-as-code: rotatable, revocable, and not tied to a personal user account.
+
+## Region and Project ID
+
+The `region` and `project_id` arguments are **required** for every provider configuration. Set them in the provider block or via the `ACECLOUD_REGION` / `ACECLOUD_PROJECT_ID` environment variables. Terraform will fail at plan time if either is missing.
+
+This deliberate constraint keeps `terraform plan` deterministic: the same configuration produces the same plan on every machine.
+
+## API URL
+
+`api_url` is optional. When unset, the provider targets the production endpoint `https://customer.acecloud.ai/api/v1/`.
+
+## Multi-region and multi-project setups
+
+For configurations that span more than one region or more than one project, use Terraform provider aliases. See the [Multi-region and multi-project setups guide](guides/multi-region) for full patterns and examples.
+
+This provider does **not** expose `region` or `project_id` as resource-level attributes — use provider aliases instead.
+
+## Environment variables
+
+Every provider argument can be set via an environment variable instead of an HCL attribute. This is the recommended way to keep credentials out of version control.
+
+| Variable | Provider attribute |
+|---|---|
+| `ACECLOUD_API_URL` | `api_url` |
+| `ACECLOUD_API_KEY_ID` | `api_key_id` |
+| `ACECLOUD_API_KEY_SECRET` | `api_key_secret` |
+| `ACECLOUD_API_KEY_SERVICE_NAME` | `api_key_service_name` |
+| `ACECLOUD_REGION` | `region` |
+| `ACECLOUD_PROJECT_ID` | `project_id` |
+
+{{ .SchemaMarkdown | trimspace }}
