@@ -1,0 +1,74 @@
+# GoReleaser config for the AceCloud Terraform provider
+# Documentation: https://goreleaser.com
+# Reference: https://developer.hashicorp.com/terraform/registry/providers/publishing
+
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - env:
+      - CGO_ENABLED=0
+    mod_timestamp: '{{ .CommitTimestamp }}'
+    flags:
+      - -trimpath
+    ldflags:
+      - '-s -w -X main.version={{.Version}} -X main.commit={{.Commit}}'
+    goos:
+      - freebsd
+      - windows
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - '386'
+      - arm
+      - arm64
+    ignore:
+      - goos: darwin
+        goarch: '386'
+    binary: '{{ .ProjectName }}_v{{ .Version }}'
+
+archives:
+  - format: zip
+    name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}'
+
+checksum:
+  extra_files:
+    - glob: 'terraform-registry-manifest.json'
+      name_template: '{{ .ProjectName }}_{{ .Version }}_manifest.json'
+  name_template: '{{ .ProjectName }}_{{ .Version }}_SHA256SUMS'
+  algorithm: sha256
+
+signs:
+  - artifacts: checksum
+    args:
+      # If you are using this in a GitHub action or some other automated pipeline, you
+      # need to pass the batch flag to indicate it's not interactive.
+      - "--batch"
+      - "--local-user"
+      - "{{ .Env.GPG_FINGERPRINT }}"
+      - "--output"
+      - "${signature}"
+      - "--detach-sign"
+      - "${artifact}"
+
+release:
+  extra_files:
+    - glob: 'terraform-registry-manifest.json'
+      name_template: '{{ .ProjectName }}_{{ .Version }}_manifest.json'
+  # If you want to publish a manual release, you can disable this and create the release manually.
+  draft: false
+
+changelog:
+  # Per-version release notes are supplied via `--release-notes=release-notes/vX.Y.Z.md`
+  # from the GitHub Actions workflow. We don't auto-generate from commits, but
+  # we cannot set `disable: true` here — that flag also suppresses the file
+  # passed via --release-notes (documented GoReleaser behavior). Instead, we
+  # filter out every commit so the auto-changelog stays empty and the
+  # --release-notes file becomes the entire body.
+  filters:
+    exclude:
+      - '.*'
